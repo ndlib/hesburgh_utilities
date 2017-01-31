@@ -9,6 +9,11 @@ After the above is done, to install in a javascript project run
 `npm link hesburgh_util`
 in said project. This will link the globaly installed project to your local project. All `link` commands are creating symlinks so future development on the javascript project will automatically update any projects containting this one.
 
+## Grock output
+```
+LEVELS (DEBUG|TEST|VERBOSE|INFO||WARN|ERROR)
+%{TIMESTAMP_ISO8601:timestamp} ::%{LEVELS:level}:: %{GREEDYDATA:message}
+```
 
 ## Utilities:
 ### Logger (heslog)
