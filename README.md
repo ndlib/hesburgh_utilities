@@ -1,1 +1,44 @@
 # hesburgh_utilities
+
+This project contains shared utilities to be used across all projects in multiple languages - currently Javascript and Python.
+
+## Utilities:
+### Logger (heslog)
+#### Formats output for easier, uniform parsing
+
+Function | Parameters | Description
+---------|------------|------------
+debug    | message string, [arguments] | Output debug log info
+verbose  | message string, [arguments] | Output verbose log info
+test     | message string, [arguments] | Output test log info
+info     | message string, [arguments] | Output info log info
+warn     | message string, [arguments] | Output warn log info
+error    | message string, [arguments] | Output error log info
+setLevels| 1 or more heslog levels | Restrict what log tags will produce output
+setOutfile| output file name | !!Currently not implemented!!
+* [arguments] is an optional dictionary of arguments - currently ignored
+
+
+#### Usage in Python
+```
+import heslog
+
+heslog.debug("message")
+heslog.error("message")
+...
+heslog.setLevels(heslog.LEVEL_ERROR)
+heslog.debug("message") # will not output to log
+heslog.error("message") # only this function will output to log
+...
+heslog.setLevels(heslog.LEVEL_WARN, heslog.LEVEL_INFO)
+# now only warn and info will output
+```
+#### Usage in JS
+```
+const hesutil = require("hesutil");
+const heslog = hesutil.heslog;
+
+heslog.debug("message");
+...
+// same format as python from here on out (which is the whole point)
+```
