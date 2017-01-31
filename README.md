@@ -48,7 +48,7 @@ heslog.setLevels(heslog.LEVEL_WARN, heslog.LEVEL_INFO)
 ```
 #### Usage in JS
 ```
-const hesutil = require("hesutil");
+const hesutil = require("hesburgh_util");
 const heslog = hesutil.heslog;
 
 heslog.debug("message");
