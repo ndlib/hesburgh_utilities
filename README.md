@@ -52,6 +52,8 @@ const hesutil = require("hesburgh_util");
 const heslog = hesutil.heslog;
 
 heslog.debug("message");
+heslog.setLevels(heslog.levels.debug);
+heslog.setLevels(heslog.levels.debug, heslog.levels.error);
 ...
 // same format as python from here on out (which is the whole point)
 ```
