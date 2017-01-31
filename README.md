@@ -2,6 +2,14 @@
 
 This project contains shared utilities to be used across all projects in multiple languages - currently Javascript and Python.
 
+## Instilation
+To install projects locally run ./setup.sh in the home directory. This will install the python module and link the javascript module to your global namespace.
+
+After the above is done, to install in a javascript project run
+`npm link hesburgh_util`
+in said project. This will link the globaly installed project to your local project. All `link` commands are creating symlinks so future development on the javascript project will automatically update any projects containting this one.
+
+
 ## Utilities:
 ### Logger (heslog)
 #### Formats output for easier, uniform parsing
