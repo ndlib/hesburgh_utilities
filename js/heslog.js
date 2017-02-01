@@ -1,4 +1,6 @@
-const HESLOG_KEY = "library.nd.edu.logger"
+'use strict'
+
+const HESLOG_KEY = "library.nd.edu.logger";
 
 const LEVEL_DEBUG   = 0;
 const LEVEL_VERBOSE = 3;
@@ -7,7 +9,7 @@ const LEVEL_INFO    = 10;
 const LEVEL_WARN    = 40;
 const LEVEL_ERROR   = 50;
 
-const LEVELS = {}
+var LEVELS = {};
 LEVELS[LEVEL_DEBUG] = "DEBUG";
 LEVELS[LEVEL_VERBOSE] = "VERBOSE";
 LEVELS[LEVEL_TEST] = "TEST";
@@ -102,12 +104,12 @@ function getGlobal() {
 }
 
 module.exports = {
-  debug: function(message, args={}) { getGlobal().log(LEVEL_DEBUG, message, args); },
-  verbose: function(message, args={}) { getGlobal().log(LEVEL_VERBOSE, message, args); },
-  test: function(message, args={}) { getGlobal().log(LEVEL_TEST, message, args); },
-  info: function(message, args={}) { getGlobal().log(LEVEL_INFO, message, args); },
-  warn: function(message, args={}) { getGlobal().log(LEVEL_WARN, message, args); },
-  error: function(message, args={}) { getGlobal().log(LEVEL_ERROR, message, args); },
+  debug: function(message, args) { getGlobal().log(LEVEL_DEBUG, message, args); },
+  verbose: function(message, args) { getGlobal().log(LEVEL_VERBOSE, message, args); },
+  test: function(message, args) { getGlobal().log(LEVEL_TEST, message, args); },
+  info: function(message, args) { getGlobal().log(LEVEL_INFO, message, args); },
+  warn: function(message, args) { getGlobal().log(LEVEL_WARN, message, args); },
+  error: function(message, args) { getGlobal().log(LEVEL_ERROR, message, args); },
   setLevels: function() { gl = getGlobal(); gl.setLevels.apply(gl, arguments); },
   levels: {
     debug  : LEVEL_DEBUG,
