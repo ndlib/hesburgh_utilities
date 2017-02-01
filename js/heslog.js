@@ -71,8 +71,10 @@ class HesLogger {
   }
 
   log(level, message, args) {
+    var output = (message instanceof String) ? message : JSON.stringify(message);
+
     if(dictHas(this.levels, level)) {
-      var outLog = this._getPrefix(level) + this._format(message, args);
+      var outLog = this._getPrefix(level) + this._format(output, args);
       this._log(outLog);
     }
   }
