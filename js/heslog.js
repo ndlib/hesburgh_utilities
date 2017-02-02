@@ -70,8 +70,29 @@ class HesLogger {
     console.log(outStr);
   }
 
+  _toString(obj) {
+    if(typeof obj === "string") {
+      return obj;
+    }
+    else if(typeof obj === "function") {;
+      if(obj.name) {
+        return "[Function: " + obj.name + "]";
+      }
+      return "[Function]";
+    }
+    else if(typeof obj === "undefined") {
+      return "undefined";
+    }
+    else if(obj === null) {
+      return "null";
+    }
+    else {
+      return JSON.stringify(obj);
+    }
+  }
+
   log(level, message, args) {
-    var output = (message instanceof String) ? message : JSON.stringify(message);
+    var output = this._toString(message);
 
     if(dictHas(this.levels, level)) {
       var outLog = this._getPrefix(level) + this._format(output, args);
@@ -112,7 +133,7 @@ module.exports = {
   info: function(message, args) { getGlobal().log(LEVEL_INFO, message, args); },
   warn: function(message, args) { getGlobal().log(LEVEL_WARN, message, args); },
   error: function(message, args) { getGlobal().log(LEVEL_ERROR, message, args); },
-  setLevels: function() { gl = getGlobal(); gl.setLevels.apply(gl, arguments); },
+  setLevels: function() { var gl = getGlobal(); gl.setLevels.apply(gl, arguments); },
   levels: {
     debug  : LEVEL_DEBUG,
     verbose: LEVEL_VERBOSE,
