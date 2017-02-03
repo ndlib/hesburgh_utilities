@@ -49,7 +49,7 @@ class Logger(object):
     def _format(self, message, **kwargs):
       out = "%s" % message
       if kwargs.get("withOrigin", False):
-        out = "%s %s" % (self._origin() + message)
+        out = "%s %s" % (self._origin(), message)
 
       return out
 
