@@ -38,15 +38,18 @@ class HesLogger {
 
   // Format date to UTC iso-like format and log level prefix
   _getPrefix(level) {
-    var date = new Date();
-    date = pad0(date.getUTCFullYear(), 2) + "-" +
-     pad0(date.getUTCMonth() + 1, 2) + "-" +
-     pad0(date.getUTCDate(), 2) + " " +
-     pad0(date.getUTCHours(), 2) + ":" +
-     pad0(date.getUTCMinutes(), 2) + ":" +
-     pad0(date.getUTCSeconds(), 2) + "." +
-     pad0(date.getUTCMilliseconds(), 4);
-    return date + " ::" + util.dictGet(LEVELS, level, "UNKNOWN") + ":: ";
+    var date = ""
+    if(!util.getEnv("AWS_LAMBDA_FUNCTION_VERSION", false)) {
+      date = new Date();
+      date = date.getUTCFullYear() + "-" +
+       pad0(date.getUTCMonth() + 1, 2) + "-" +
+       pad0(date.getUTCDate(), 2) + " " +
+       pad0(date.getUTCHours(), 2) + ":" +
+       pad0(date.getUTCMinutes(), 2) + ":" +
+       pad0(date.getUTCSeconds(), 2) + "." +
+       pad0(date.getUTCMilliseconds(), 4) + " ";
+    }
+    return date + "::" + util.dictGet(LEVELS, level, "UNKNOWN") + ":: ";
   }
 
   _format(message, args) {

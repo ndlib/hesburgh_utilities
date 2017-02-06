@@ -3,7 +3,7 @@ from hesburgh import heslog,hesutil
 message = "message"
 heslog.setContext({"foo": "bar"})
 
-heslog.debug(message)
+heslog.debug(message, this="that", context="test")
 heslog.verbose(message)
 heslog.info(message)
 heslog.warn(message)

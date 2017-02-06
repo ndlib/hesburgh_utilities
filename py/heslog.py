@@ -1,6 +1,8 @@
 from datetime import datetime
 import inspect
 
+import hesutil
+
 LEVEL_DEBUG   = 0
 LEVEL_VERBOSE = 3
 LEVEL_TEST    = 5
@@ -36,8 +38,11 @@ class Logger(object):
 
 
     def _getPrefix(self, level):
-      dateStr = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')
-      return "%s ::%s:: " % (dateStr, self.levels.get(level, "UNKNOWN"))
+      dateStr = ""
+      if not hesutil.getEnv("AWS_LAMBDA_FUNCTION_VERSION", False):
+        dateStr = "%s " % datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')
+
+      return "%s::%s:: " % (dateStr, self.levels.get(level, "UNKNOWN"))
 
 
     def _format(self, message, **kwargs):
