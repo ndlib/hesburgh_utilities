@@ -25,16 +25,10 @@ class Logger(object):
   __instance = None
 
   class __onlyOne(object):
-    def __init__(self, levels, outFile):
+    def __init__(self, levels, coreContext, outFile):
       self.outFile = outFile
       self.levels = levels
-
-
-    def _origin(self):
-      # Get frame from 4 functions ago (should be the caller of the global log function)
-      frame = inspect.stack()[4]
-      # 1 = file 2 = line number
-      return "%s:%s -- " % (frame[1], frame[2])
+      self.coreContext = coreContext
 
 
     def _log(self, message):
@@ -47,10 +41,15 @@ class Logger(object):
 
 
     def _format(self, message, **kwargs):
-      out = "%s" % message
-      if kwargs.get("withOrigin", False):
-        out = "%s %s" % (self._origin(), message)
-
+      coreCopy = self.coreContext.copy()
+      coreCopy.update(kwargs)
+      if coreCopy:
+        out = ""
+        for k,v in coreCopy.iteritems():
+          out += "%s=%s | " % (k,v)
+        out += "%s" % (message)
+      else:
+        out = "%s" % message
       return out
 
 
@@ -61,17 +60,36 @@ class Logger(object):
 
 
     def setLevels(self, *levels):
+      if not levels:
+        self.levels = LEVELS
+        return
       self.levels = { k: LEVELS.get(k) for k in levels }
 
 
-  def __new__(self, level = LEVELS, outFile = None):
+    def setContext(self, context):
+      assert context is None or type(context) is dict
+      self.coreContext = context
+
+
+  def __new__(self, level = LEVELS, coreContext = {}, outFile = None):
     if Logger.__instance is None:
-      Logger.__instance = Logger.__onlyOne(level, outFile)
+      Logger.__instance = Logger.__onlyOne(level, coreContext, outFile)
     return Logger.__instance
 
 
   def __getattr__(self, name):
     return getattr(self.__instance, name)
+
+
+def _origin():
+  # Get frame from 2 functions ago (should be the caller of the global log function)
+  frame = inspect.stack()[2]
+  # 1 = file 2 = line number
+  return "%s:%s" % (frame[1], frame[2])
+
+
+def setContext(context={}):
+  Logger().setContext(context)
 
 
 def debug(message, **kwargs):
@@ -95,9 +113,7 @@ def warn(message, **kwargs):
 
 
 def error(message, **kwargs):
-  if "withOrigin" not in kwargs:
-    kwargs["withOrigin"] = True
-
+  kwargs["_code_origin"] = _origin()
   Logger().log(LEVEL_ERROR, message, **kwargs)
 
 

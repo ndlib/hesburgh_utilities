@@ -1,5 +1,7 @@
 'use strict'
 
+const util = require('./hesutil');
+
 const HESLOG_KEY = "library.nd.edu.logger";
 
 const LEVEL_DEBUG   = 0;
@@ -22,16 +24,6 @@ LEVELS[LEVEL_ERROR] = "ERROR";
 // %{TIMESTAMP_ISO8601:timestamp} ::%{LEVELS:level}:: %{GREEDYDATA:message}
 
 //TODO: these helpers should be exported to some other utility module
-function dictHas(dict, key) {
-  return dict.hasOwnProperty(key);
-}
-
-function dictGet(dict, key, defaultVal) {
-  if(dictHas(dict, key)) {
-    return dict[key];
-  }
-  return defaultVal;
-}
 
 function pad0(val, digits) {
   return ("00000000" + val).slice(-digits);
@@ -41,10 +33,7 @@ class HesLogger {
   constructor() {
     this.levels = LEVELS;
     this.outFile = null;
-  }
-
-  _origin() {
-    // This isn't well supported in JS
+    this.coreContext = {};
   }
 
   // Format date to UTC iso-like format and log level prefix
@@ -57,13 +46,16 @@ class HesLogger {
      pad0(date.getUTCMinutes(), 2) + ":" +
      pad0(date.getUTCSeconds(), 2) + "." +
      pad0(date.getUTCMilliseconds(), 4);
-    return date + " ::" + dictGet(LEVELS, level, "UNKNOWN") + ":: ";
+    return date + " ::" + util.dictGet(LEVELS, level, "UNKNOWN") + ":: ";
   }
 
   _format(message, args) {
-    var out = message;
-    //handle any args to format output
-    return out;
+    var context = Object.assign({}, this.coreContext, args);
+    var out = ""
+    for(var k in context) {
+      out += this._toString(k) + "=" + this._toString(context[k]) + " | ";
+    }
+    return out + message;
   }
 
   _log(outStr) {
@@ -94,22 +86,26 @@ class HesLogger {
   log(level, message, args) {
     var output = this._toString(message);
 
-    if(dictHas(this.levels, level)) {
+    if(util.dictHas(this.levels, level)) {
       var outLog = this._getPrefix(level) + this._format(output, args);
       this._log(outLog);
     }
   }
 
   setLevels() {
+    if(arguments.length == 0) {
+      this.levels = LEVELS;
+      return;
+    }
     this.levels = {}
     for(var index in arguments) {
       var key = arguments[index];
-      this.levels[key] = dictGet(LEVELS, key, "UNKNOWN");
+      this.levels[key] = util.dictGet(LEVELS, key, "UNKNOWN");
     }
   }
 
-  setOutfile(filename) {
-    this.info("file output currently not implemented");
+  setContext(context) {
+    this.coreContext = context;
   }
 }
 
@@ -134,6 +130,7 @@ module.exports = {
   warn: function(message, args) { getGlobal().log(LEVEL_WARN, message, args); },
   error: function(message, args) { getGlobal().log(LEVEL_ERROR, message, args); },
   setLevels: function() { var gl = getGlobal(); gl.setLevels.apply(gl, arguments); },
+  setContext: function(context) { getGlobal().setContext(context); },
   levels: {
     debug  : LEVEL_DEBUG,
     verbose: LEVEL_VERBOSE,
