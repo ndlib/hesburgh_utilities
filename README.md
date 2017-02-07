@@ -9,35 +9,49 @@ After the above is done, to install in a javascript project run
 `npm link hesburgh_util`
 in said project. This will link the globaly installed project to your local project. All `link` commands are creating symlinks so future development on the javascript project will automatically update any projects containting this one.
 
-## Grock output
+## Utilities:
+### Logger (heslog)
+
+#### Grock output
 ```
 LEVELS (DEBUG|TEST|VERBOSE|INFO||WARN|ERROR)
 %{TIMESTAMP_ISO8601:timestamp} ::%{LEVELS:level}:: %{GREEDYDATA:message}
 ```
-
-## Utilities:
-### Logger (heslog)
 #### Formats output for easier, uniform parsing
 
 Function | Parameters | Description
 ---------|------------|------------
-debug    | message string, [arguments] | Output debug log info
-verbose  | message string, [arguments] | Output verbose log info
-test     | message string, [arguments] | Output test log info
-info     | message string, [arguments] | Output info log info
-warn     | message string, [arguments] | Output warn log info
-error    | message string, [arguments] | Output error log info
-setLevels| 1 or more heslog levels | Restrict what log tags will produce output
-setOutfile| output file name | !!Currently not implemented!!
-* [arguments] is an optional dictionary of arguments - currently ignored
+debug    |            | Output debug log info
+         | message    | String: message to output
+         | context | Optional: Dict in JS, kwargs in PY - context information
+verbose  |            | Output verbose log info
+         | message    | String: message to output
+         | context | Optional: Dict in JS, kwargs in PY - context information
+test     |            | output test log info
+         | message    | String: message to output
+         | context | Optional: Dict in JS, kwargs in PY - context information
+info     |            | output info log info
+         | message    | String: message to output
+         | context | Optional: Dict in JS, kwargs in PY - context information
+warn     |            | Output warn info
+         | message    | String: message to output
+         | context | Optional: Dict in JS, kwargs in PY - context information
+error    |            | Output error log info
+         | message    | String: message to output
+         | context | Optional: Dict in JS, kwargs in PY - context information
+setContext|           | Set the general context that will print with every message
+         | context    | Dictionary: arbitrary key-value pairs denoting context
+setLevels|            | Set what log tags will produce output
+         | 1 or more heslog levels | As defined in heslog (eg. heslog.LEVEL_ERROR)
 
 
 #### Usage in Python
 ```
 import heslog
 
+heslog.setContext({"foo": "bar"})
 heslog.debug("message")
-heslog.error("message")
+heslog.error("message", foo="baz", context="here") # this overrides foo for this message only
 ...
 heslog.setLevels(heslog.LEVEL_ERROR)
 heslog.debug("message") # will not output to log
@@ -51,9 +65,25 @@ heslog.setLevels(heslog.LEVEL_WARN, heslog.LEVEL_INFO)
 const hesutil = require("hesburgh_util");
 const heslog = hesutil.heslog;
 
-heslog.debug("message");
+heslog.setContext({foo: "bar"});
+heslog.debug("message", {foo: "baz", context: "here"});
 heslog.setLevels(heslog.levels.debug);
 heslog.setLevels(heslog.levels.debug, heslog.levels.error);
 ...
 // same format as python from here on out (which is the whole point)
 ```
+
+### Utils (hesutil)
+Function | Parameters | Description
+---------|------------|------------
+getEnv   |            | Get an environment variable or default if it doesn't exist or throw if it doesn't exist
+         | key        | String: key to get
+         | defaultVal | Optional String: Default value to use if key doesn't exist
+         | shouldThrow | Optional Boolean: If true, will throw an error if key doesn't exist
+dictHas(js only) |    | Check if dictionary has key
+         | dict       | Dictionary: The dictionary to use
+         | key        | String: the key to check
+dictGet(js only) |    | A safe key retrieval for JS dictionaries
+         | dict       | Dictionary: The dictionary to use
+         | key        | String: the key to get
+         | defaultVal | String: default value to return if key doesn't exist
