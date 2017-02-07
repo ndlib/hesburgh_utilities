@@ -5,9 +5,11 @@ This project contains shared utilities to be used across all projects in multipl
 ## Instilation
 To install projects locally run ./setup.sh in the home directory. This will install the python module and link the javascript module to your global namespace.
 
-After the above is done, to install in a javascript project run
-`npm link hesburgh_util`
-in said project. This will link the globaly installed project to your local project. All `link` commands are creating symlinks so future development on the javascript project will automatically update any projects containting this one.
+###JS
+To install in a javascript project run `npm link hesburgh_util` in said project. This will link the globaly installed project to your local project. All `link` commands are creating symlinks so future development on the javascript project will automatically update any projects containting this one.
+
+###PY
+To install the python library to another project, you must run `ln -s "/usr/local/lib/python2.7/site-packages/hesburgh"` in that project directory. This is only needed if your project is going to be packaged for lambda, as it must exist in the directory to be zipped up. Please also add "hesburgh/" to your .gitignore file after doing this. 
 
 ## Utilities:
 ### Logger (heslog)
