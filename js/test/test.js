@@ -6,6 +6,8 @@ const hesutil = require('../hesutil');
 heslog.setContext({foo: "bar"});
 var message = "message";
 heslog.debug(message, {this: "that"});
+heslog.addContext({baz: "foo"});
+heslog.addContext({test: "this"});
 heslog.verbose(message);
 heslog.test(message);
 heslog.info(message);
@@ -23,7 +25,13 @@ heslog.warn(message);
 heslog.error(message);
 
 heslog.setContext();
+//
+var event = {requestContext: {requestId: "api_id"}};
+var context = {awsRequestId: "lambda_id"};
+heslog.addLambdaContext(event, context, {extra: "test"});
+heslog.debug("lambda test");
 
+heslog.setContext();
 //// print types test
 heslog.setLevels();
 function testFunc() { return "foo"; }

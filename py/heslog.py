@@ -76,6 +76,10 @@ class Logger(object):
       self.coreContext = context
 
 
+    def addContext(self, context):
+      self.coreContext.update(context)
+
+
   def __new__(self, level = LEVELS, coreContext = {}, outFile = None):
     if Logger.__instance is None:
       Logger.__instance = Logger.__onlyOne(level, coreContext, outFile)
@@ -95,6 +99,21 @@ def _origin():
 
 def setContext(context={}):
   Logger().setContext(context)
+
+
+def addContext(context={}, **kwargs):
+  if context is None:
+    context = {}
+  context.update(kwargs)
+  Logger().addContext(context)
+
+
+def addLambdaContext(event, context, **kwargs):
+  addContext(
+    api_requestId = event.get("requestContext", {}).get("requestId", ""),
+    lambda_requestId = context.aws_request_id if context and context.aws_request_id else "",
+    **kwargs
+  )
 
 
 def debug(message, **kwargs):

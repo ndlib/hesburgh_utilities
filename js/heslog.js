@@ -110,6 +110,10 @@ class HesLogger {
   setContext(context) {
     this.coreContext = context;
   }
+
+  addContext(context) {
+    this.coreContext = Object.assign({}, this.coreContext, context);
+  }
 }
 
 // set up global singleton
@@ -125,6 +129,14 @@ function getGlobal() {
   return global[HESLOG_KEY];
 }
 
+function addLambdaContext(event, context, extra) {
+  var lambdaContext = {
+    api_requestId: util.dictGet(util.dictGet(event, "requestContext", {}), "requestId", ""),
+    lambda_requestId: context ? context.awsRequestId : "",
+  }
+  getGlobal().addContext(Object.assign({}, lambdaContext, extra));
+}
+
 module.exports = {
   debug: function(message, args) { getGlobal().log(LEVEL_DEBUG, message, args); },
   verbose: function(message, args) { getGlobal().log(LEVEL_VERBOSE, message, args); },
@@ -134,6 +146,8 @@ module.exports = {
   error: function(message, args) { getGlobal().log(LEVEL_ERROR, message, args); },
   setLevels: function() { var gl = getGlobal(); gl.setLevels.apply(gl, arguments); },
   setContext: function(context) { getGlobal().setContext(context); },
+  addContext: function(context) { getGlobal().addContext(context); },
+  addLambdaContext: addLambdaContext,
   levels: {
     debug  : LEVEL_DEBUG,
     verbose: LEVEL_VERBOSE,

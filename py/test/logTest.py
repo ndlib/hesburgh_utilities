@@ -2,8 +2,9 @@ from hesburgh import heslog,hesutil
 
 message = "message"
 heslog.setContext({"foo": "bar"})
-
 heslog.debug(message, this="that", context="test")
+heslog.addContext(baz="foo")
+heslog.addContext({"test": "this"})
 heslog.verbose(message)
 heslog.info(message)
 heslog.warn(message)
@@ -19,6 +20,7 @@ heslog.warn(message) # should not print
 heslog.error(message)
 
 heslog.setContext()
+
 
 ### print types test
 heslog.setLevels()
