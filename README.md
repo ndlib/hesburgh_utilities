@@ -19,6 +19,12 @@ To install the python library to another project, you must run `ln -s "/usr/loca
 LEVELS (DEBUG|TEST|VERBOSE|INFO||WARN|ERROR)
 %{TIMESTAMP_ISO8601:timestamp} ::%{LEVELS:level}:: %{GREEDYDATA:message}
 ```
+### Example Output
+A basic log prints date, time, logtype, context (key,value pairs separated by |'s) and finally the message eg:
+
+`2017-02-08 21:06:27.328743 ::DEBUG:: lambda_requestId=some_id | request_code=github | api_requestId=some_other_id | printing this debug message`
+
+Note: date/time will not be printed on AWS as they already add that to logs. It can easily be added back if we ever need it though.
 #### Formats output for easier, uniform parsing
 
 Function | Parameters | Description
