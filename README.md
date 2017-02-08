@@ -9,7 +9,7 @@ To install projects locally run ./setup.sh in the home directory. This will inst
 To install in a javascript project run `npm link hesburgh_util` in said project. This will link the globaly installed project to your local project. All `link` commands are creating symlinks so future development on the javascript project will automatically update any projects containting this one.
 
 ###PY
-To install the python library to another project, you must run `ln -s "/usr/local/lib/python2.7/site-packages/hesburgh"` in that project directory. This is only needed if your project is going to be packaged for lambda, as it must exist in the directory to be zipped up. Please also add "hesburgh/" to your .gitignore file after doing this. 
+To install the python library to another project, you must run `ln -s "/usr/local/lib/python2.7/site-packages/hesburgh"` in that project directory. This is only needed if your project is going to be packaged for lambda, as it must exist in the directory to be zipped up. Please also add "hesburgh/" to your .gitignore file after doing this.
 
 ## Utilities:
 ### Logger (heslog)
@@ -43,6 +43,14 @@ error    |            | Output error log info
          | context | Optional: Dict in JS, kwargs in PY - context information
 setContext|           | Set the general context that will print with every message
          | context    | Dictionary: arbitrary key-value pairs denoting context
+addContext|           | Add values to the general context
+         | context    | (optional in py) Dictionary: arbitrary key-value pairs denoting context
+         | (py only)**kwargs | optional arbitrary key-value pairs denoting context
+addLambdaContext|           | Add the basic lambda context information (request id, etc)
+         | event      | The event passed in from the lambda
+         | context    | The context passed in from the lambda
+         | (js only)extra | optional Dictionary: arbitrary key-value pairs denoting context
+         | (py only)**kwargs | optional arbitrary key-value pairs denoting context
 setLevels|            | Set what log tags will produce output
          | 1 or more heslog levels | As defined in heslog (eg. heslog.LEVEL_ERROR)
 
