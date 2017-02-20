@@ -2,6 +2,8 @@
 
 This project contains shared utilities to be used across all projects in multiple languages - currently Javascript and Python.
 
+NOTE: On AWS heslog defaults to only logging INFO, WARN, and ERROR levels while locally all default to being on. To override in either environment set the env var HESBURGH_DEBUG=[true|false] to the appropriate value for what you want.
+
 ## Instilation
 To install projects locally run ./setup.sh in the home directory. This will install the python module and link the javascript module to your global namespace.
 
