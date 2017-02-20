@@ -14,6 +14,7 @@ heslog.info(message);
 heslog.warn(message);
 heslog.error(message);
 
+heslog.info("setting levels to debug and error");
 heslog.setLevels(heslog.levels.debug, heslog.levels.error);
 heslog.setContext({bar: "baz"});
 
@@ -33,6 +34,7 @@ heslog.debug("lambda test");
 
 heslog.setContext();
 //// print types test
+heslog.debug("setting all levels");
 heslog.setLevels();
 function testFunc() { return "foo"; }
 heslog.verbose("----------");
@@ -51,3 +53,4 @@ try {
 } catch(e) {
   heslog.error(e);
 }
+

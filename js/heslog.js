@@ -31,15 +31,24 @@ function pad0(val, digits) {
 
 class HesLogger {
   constructor() {
-    this.levels = LEVELS;
+    var useDebug = util.getEnv("HESLOG_DEBUG", !util.onAWS);
+    console.log(useDebug);
+    if(useDebug == "true" || useDebug == "True" || useDebug == "t" || useDebug == true) {
+      this.levels = LEVELS;
+    } else {
+      this.levels = {}
+      this.levels[LEVEL_INFO] = LEVELS[LEVEL_INFO];
+      this.levels[LEVEL_WARN] = LEVELS[LEVEL_WARN];
+      this.levels[LEVEL_ERROR] = LEVELS[LEVEL_ERROR];
+    }
     this.outFile = null;
     this.coreContext = {};
   }
 
   // Format date to UTC iso-like format and log level prefix
   _getPrefix(level) {
-    var date = ""
-    if(!util.getEnv("AWS_LAMBDA_FUNCTION_VERSION", false)) {
+    var date = "";
+    if(!util.onAWS) {
       date = new Date();
       date = date.getUTCFullYear() + "-" +
        pad0(date.getUTCMonth() + 1, 2) + "-" +
@@ -58,7 +67,7 @@ class HesLogger {
     for(var k in context) {
       out += this._toString(k) + "=" + this._toString(context[k]) + " | ";
     }
-    return out + message;
+    return out + "message=" + message;
   }
 
   _log(outStr) {

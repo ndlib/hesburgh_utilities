@@ -3,5 +3,8 @@
   "description": "Hesburgh Javascript Utilities",
   "version": "0.0.1",
   "license": "",
-  "main": "index.js"
+  "main": "index.js",
+  "dependencies": {
+    "aws-sdk": "^2.12.0"
+  }
 }

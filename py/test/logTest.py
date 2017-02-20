@@ -11,6 +11,7 @@ heslog.warn(message)
 heslog.error(message)
 
 heslog.setContext({"bar": "baz"})
+heslog.info("Setting levels to debug and error")
 heslog.setLevels(heslog.LEVEL_DEBUG, heslog.LEVEL_ERROR)
 
 heslog.debug(message)
@@ -23,6 +24,7 @@ heslog.setContext()
 
 
 ### print types test
+heslog.debug("Setting all levels")
 heslog.setLevels()
 def testFunc():
   return "foo";

@@ -27,9 +27,18 @@ class Logger(object):
   __instance = None
 
   class __onlyOne(object):
-    def __init__(self, levels, coreContext, outFile):
+    def __init__(self, coreContext, outFile):
       self.outFile = outFile
-      self.levels = levels
+
+      useDebug = hesutil.getEnv("HESLOG_DEBUG", not hesutil.onAWS)
+      if useDebug == True or useDebug == "true" or useDebug == "True" or useDebug == "t":
+        self.levels = LEVELS
+      else:
+        self.levels = {
+          LEVEL_INFO: LEVELS[LEVEL_INFO],
+          LEVEL_WARN: LEVELS[LEVEL_WARN],
+          LEVEL_ERROR: LEVELS[LEVEL_ERROR],
+        }
       self.coreContext = coreContext
 
 
@@ -39,22 +48,22 @@ class Logger(object):
 
     def _getPrefix(self, level):
       dateStr = ""
-      if not hesutil.getEnv("AWS_LAMBDA_FUNCTION_VERSION", False):
-        dateStr = "%s " % datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')
+      # AWS doesn't log the datetime in python logs else -> if not hesutil.onAWS:
+      dateStr = "%s " % datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')
 
-      return "%s::%s:: " % (dateStr, self.levels.get(level, "UNKNOWN"))
+      return u"%s::%s:: " % (dateStr, self.levels.get(level, "UNKNOWN"))
 
 
     def _format(self, message, **kwargs):
       coreCopy = self.coreContext.copy()
       coreCopy.update(kwargs)
       if coreCopy:
-        out = ""
+        out = u""
         for k,v in coreCopy.iteritems():
-          out += "%s=%s | " % (k,v)
-        out += "%s" % (message)
+          out += u"%s=%s | " % (k,v)
+        out += u"message=%s" % (message)
       else:
-        out = "%s" % message
+        out = u"message=%s" % message
       return out
 
 
@@ -80,9 +89,10 @@ class Logger(object):
       self.coreContext.update(context)
 
 
-  def __new__(self, level = LEVELS, coreContext = {}, outFile = None):
+  def __new__(self, coreContext = {}, outFile = None):
     if Logger.__instance is None:
-      Logger.__instance = Logger.__onlyOne(level, coreContext, outFile)
+      Logger.__instance = Logger.__onlyOne(coreContext, outFile)
+
     return Logger.__instance
 
 
@@ -94,7 +104,7 @@ def _origin():
   # Get frame from 2 functions ago (should be the caller of the global log function)
   frame = inspect.stack()[2]
   # 1 = file 2 = line number
-  return "%s:%s" % (frame[1], frame[2])
+  return u"%s:%s" % (frame[1], frame[2])
 
 
 def setContext(context={}):
