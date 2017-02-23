@@ -32,7 +32,6 @@ function pad0(val, digits) {
 class HesLogger {
   constructor() {
     var useDebug = util.getEnv("HESLOG_DEBUG", !util.onAWS);
-    console.log(useDebug);
     if(useDebug == "true" || useDebug == "True" || useDebug == "t" || useDebug == true) {
       this.levels = LEVELS;
     } else {
