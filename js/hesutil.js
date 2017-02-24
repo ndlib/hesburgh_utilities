@@ -1,5 +1,32 @@
-// const AWS = require('aws-sdk');
 const onAWS = dictHas(process.env, "AWS_LAMBDA_FUNCTION_VERSION");
+
+var decrypt = (key, defaultVal) => {
+  return dictGet(process.env, key, defaultVal);
+}
+
+// Try to import the aws-sdk, will always work on aws but may fail locally
+try {
+  var AWS = require('aws-sdk');
+  if(onAWS) {
+    decrypt = (key, defaultVal) => {
+      const kms = new AWS.KMS();
+      var val = dictGet(process.env, key, defaultVal);
+      if(typeof val === "string") {
+        kms.decrypt({ CiphertextBlob: new Buffer(val, 'base64') }, (err, data) => {
+          if (err) {
+            console.log(err.message);
+            console.log("Couldn't decode value for key " + key + " using env val");
+            return val;
+          }
+          return data.Plaintext.toString('ascii');
+        });
+      }
+      return val;
+    }
+  }
+} catch (ex) {
+  // nothing
+}
 
 // This allowes decrypted values to only be decrypted once per lambda container
 var decrypted = {};
@@ -28,20 +55,7 @@ function getEnv(key, defaultVal, shouldThrow) {
     return dictGet(decrypted, key, defaultVal);
   }
 
-  var val = dictGet(process.env, key, defaultVal);
-
-  // Decrypt in KMS when we get to that point
-  // if(onAWS)
-  // {
-  //   const kms = new AWS.KMS();
-  //   kms.decrypt({ CiphertextBlob: new Buffer(val, 'base64') }, (err, data) => {
-  //     if (err) {
-  //       console.log('Decrypt error:', err);
-  //       throw err;
-  //     }
-  //     val = data.Plaintext.toString('ascii');
-  //   });
-  // }
+  var val = decrypt(key, defaultVal);
   decrypted[key] = val;
 
   return val;
