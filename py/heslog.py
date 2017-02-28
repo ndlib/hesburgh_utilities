@@ -27,7 +27,7 @@ class Logger(object):
   __instance = None
 
   class __onlyOne(object):
-    def __init__(self, coreContext, outFile):
+    def __init__(self, outFile):
       self.outFile = outFile
 
       useDebug = hesutil.getEnv("HESLOG_DEBUG", not hesutil.onAWS)
@@ -39,7 +39,7 @@ class Logger(object):
           LEVEL_WARN: LEVELS[LEVEL_WARN],
           LEVEL_ERROR: LEVELS[LEVEL_ERROR],
         }
-      self.coreContext = coreContext
+      self.coreContext = {}
 
 
     def _log(self, message):
@@ -82,6 +82,8 @@ class Logger(object):
 
     def setContext(self, context):
       assert context is None or type(context) is dict
+      if context is None:
+        context = {}
       self.coreContext = context
 
 
@@ -89,9 +91,9 @@ class Logger(object):
       self.coreContext.update(context)
 
 
-  def __new__(self, coreContext = {}, outFile = None):
+  def __new__(self, outFile = None):
     if Logger.__instance is None:
-      Logger.__instance = Logger.__onlyOne(coreContext, outFile)
+      Logger.__instance = Logger.__onlyOne(outFile)
 
     return Logger.__instance
 
@@ -107,11 +109,11 @@ def _origin():
   return u"%s:%s" % (frame[1], frame[2])
 
 
-def setContext(context={}):
+def setContext(context=None):
   Logger().setContext(context)
 
 
-def addContext(context={}, **kwargs):
+def addContext(context=None, **kwargs):
   if context is None:
     context = {}
   context.update(kwargs)

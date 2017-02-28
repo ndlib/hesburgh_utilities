@@ -43,3 +43,13 @@ try:
 except Exception as e:
   heslog.error(e)
 
+
+timer = hesutil.Timer()
+timer.start()
+heslog.test(timer.step())
+heslog.test(timer.step(returnDTFromPrev=True))
+end = timer.end()
+heslog.test(end)
+heslog.test(timer.getAvgStep())
+heslog.test(timer.getSteps())
+heslog.test(end - timer.end())

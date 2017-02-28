@@ -54,3 +54,12 @@ try {
   heslog.error(e);
 }
 
+var timer = new hesutil.Timer()
+timer.start()
+heslog.test(timer.step())
+heslog.test(timer.step(true))
+var end = timer.end()
+heslog.test(end)
+heslog.test(timer.getAvgStep())
+heslog.test(timer.getSteps())
+heslog.test(end - timer.end())

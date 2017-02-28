@@ -1,5 +1,68 @@
 const onAWS = dictHas(process.env, "AWS_LAMBDA_FUNCTION_VERSION");
 
+class Timer {
+  constructor(start=false) {
+    this._start = Date.now();
+    this._end = this._start;
+    this._steps = [];
+
+    this._running = false;
+    if(start){
+      this.start();
+    }
+  }
+
+  start() {
+    this._running = true;
+    this._steps = [];
+
+    this._start = Date.now();
+  }
+
+  step(returnDTFromPrev=false) {
+    if(!this._running) {
+      return -1;
+    }
+
+    var now = Date.now();
+    var dt = now - this._start;
+    this._steps.push(dt);
+
+    var stepsLen = this._steps.length
+    if(returnDTFromPrev && stepsLen >= 2) {
+      return dt - this._steps[stepsLen - 2];
+    }
+    return dt;
+  }
+
+  getAvgStep() {
+    var end = this._end;
+    if(this._running) {
+      end = Date.now();
+    }
+
+    var numSteps = this._steps.length > 0 ? this._steps.length : 1;
+    return (end - this._start) / numSteps;
+  }
+
+  getSteps() {
+    return this._steps;
+  }
+
+  end() {
+    if(!this._running) {
+      return this._end - this._start;
+    }
+
+    this._end = Date.now();
+    this._running = false;
+
+    var dt = this._end - this._start;
+    this._steps.push(dt);
+    return dt;
+  }
+}
+
 var decrypt = (key, defaultVal) => {
   return dictGet(process.env, key, defaultVal);
 }
@@ -67,4 +130,5 @@ module.exports = {
   dictGet: dictGet,
   getEnv: getEnv,
   onAWS: onAWS,
+  Timer: Timer,
 };
