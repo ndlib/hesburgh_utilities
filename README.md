@@ -2,7 +2,8 @@
 
 This project contains shared utilities to be used across all projects in multiple languages - currently Javascript and Python.
 
-NOTE: On AWS heslog defaults to only logging INFO, WARN, and ERROR levels while locally all default to being on. To override in either environment set the env var HESBURGH_DEBUG=[true|false] to the appropriate value for what you want.
+#### NOTE: Unless otherwise stated all utilities are avaialable in all supported languages, even if they don't have usage examples in that language.
+#### NOTE: On AWS heslog defaults to only logging INFO, WARN, and ERROR levels while locally all default to being on. To override in either environment set the env var HESBURGH_DEBUG=[true|false] to the appropriate value for what you want.
 
 ## Instilation
 To install projects locally run ./setup.sh in the home directory. This will install the python module and link the javascript module to your global namespace.
@@ -80,8 +81,8 @@ heslog.setLevels(heslog.LEVEL_WARN, heslog.LEVEL_INFO)
 ```
 #### Usage in JS
 ```
-const hesutil = require("hesburgh_util");
-const heslog = hesutil.heslog;
+const hesburgh = require("hesburgh_util");
+const heslog = hesburgh.heslog;
 
 heslog.setContext({foo: "bar"});
 heslog.debug("message", {foo: "baz", context: "here"});
@@ -105,7 +106,21 @@ dictGet(js only) |    | A safe key retrieval for JS dictionaries
          | dict       | Dictionary: The dictionary to use
          | key        | String: the key to get
          | defaultVal | String: default value to return if key doesn't exist
-         
+
+#### JS
+```
+const hesburgh = require("hesburgh_util");
+const hesutil = hesburgh.hesutil;
+
+var value = hesutil.getEnv("key", "defaultValue");
+
+//safely get value from a dictionary
+var foo = hesutil.dictGet(testDict, "key", "defaultVal");
+
+// check if a dictionary has a key
+var has = hesutil.dictHas(testDict, "key")
+```
+
 ### Timer (in hesutil)
 Function | Parameters | Description
 ---------|------------|------------
@@ -116,6 +131,8 @@ step     |            | mark a step in time, returns dt from the start time
 getAvgStep |          | Get the average time for each step
 getSteps |            | Get the array of steps
 end      |            | Stop the timer/Get the total time
+
+#### Python
 ```
 from hesburgh import hesutil
 
