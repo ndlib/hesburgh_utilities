@@ -105,3 +105,25 @@ dictGet(js only) |    | A safe key retrieval for JS dictionaries
          | dict       | Dictionary: The dictionary to use
          | key        | String: the key to get
          | defaultVal | String: default value to return if key doesn't exist
+         
+### Timer (in hesutil)
+Function | Parameters | Description
+---------|------------|------------
+start    |            | start the timer
+         | start      | Optional bool (default False): start the timer immediatly
+step     |            | mark a step in time, returns dt from the start time
+         | returnDTFromPrev | Optional bool (default False): return the dt from the previous step instead of from start time, if no previous step exists, will return dt from start 
+getAvgStep |          | Get the average time for each step
+getSteps |            | Get the array of steps
+end      |            | Stop the timer/Get the total time
+```
+from hesburgh import hesutil
+
+timer = hesutil.Timer()
+timer.start()
+# do stuff
+dt = timer.step()
+# do stuff
+totalTime = timer.end()
+avgTime = timer.getAvgStep()
+```
