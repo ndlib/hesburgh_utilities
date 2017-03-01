@@ -1,7 +1,9 @@
+'use strict'
+
 const onAWS = dictHas(process.env, "AWS_LAMBDA_FUNCTION_VERSION");
 
 class Timer {
-  constructor(start=false) {
+  constructor(start) {
     this._start = Date.now();
     this._end = this._start;
     this._steps = [];
@@ -19,7 +21,7 @@ class Timer {
     this._start = Date.now();
   }
 
-  step(returnDTFromPrev=false) {
+  step(returnDTFromPrev) {
     if(!this._running) {
       return -1;
     }
