@@ -99,7 +99,7 @@ getEnv   |            | Get an environment variable or default if it doesn't exi
          | key        | String: key to get
          | defaultVal | Optional String: Default value to use if key doesn't exist
          | shouldThrow | Optional Boolean: If true, will throw an error if key doesn't exist
-getEnvEncrypted   |            | Get an environment variable or default if it doesn't exist or throw if it doesn't exist
+getEnvEncrypted   |            | Get an AWS-KMS encrypted environment variable or default if it doesn't exist or throw if it doesn't exist
          | key        | String: key to get
          | callback        | function(err, decryptedValue): Function to callback once decrypted. err will be populated if any error was encountered
          | defaultVal | Optional String: Default value to use if key doesn't exist
