@@ -89,7 +89,7 @@ try {
     }
   }
 } catch (ex) {
-  return callback(ex);
+  console.log(ex);
 }
 
 // This allowes decrypted values to only be decrypted once per lambda container
