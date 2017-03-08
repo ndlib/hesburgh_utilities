@@ -67,7 +67,7 @@ class Timer {
 
 // When not on AWS, only returns the raw value
 var decrypt = (key, callback, defaultVal) => {
-  callback(dictGet(process.env, key, defaultVal));
+  callback(null, dictGet(process.env, key, defaultVal));
 }
 
 // Try to import the aws-sdk, will always work on aws but may fail locally
@@ -80,18 +80,16 @@ try {
       if(typeof val === "string") {
         kms.decrypt({ CiphertextBlob: new Buffer(val, 'base64') }, (err, data) => {
           if (err) {
-            console.log(err.message);
-            console.log("Couldn't decode value for key " + key + " using env val");
-            return val;
+            return callback(err);
           }
-          callback(data.Plaintext.toString('ascii'));
+          return callback(null, data.Plaintext.toString('ascii'));
         });
       }
       return val;
     }
   }
 } catch (ex) {
-  console.log(ex);
+  return callback(ex);
 }
 
 // This allowes decrypted values to only be decrypted once per lambda container
@@ -118,12 +116,15 @@ function getEnvEncrypted(key, callback, defaultVal, shouldThrow) {
   }
 
   if(dictHas(decrypted, key)) {
-    callback(dictGet(decrypted, key, defaultVal));
+    return callback(null, dictGet(decrypted, key, defaultVal));
   }
 
-  decrypt(key, function(val) {
+  decrypt(key, function(err, val) {
+    if(err){
+      return callback(err);
+    }
     decrypted[key] = val;
-    callback(val);
+    return callback(null, val);
   }, defaultVal);
 }
 
