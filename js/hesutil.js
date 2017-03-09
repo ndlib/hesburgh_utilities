@@ -65,32 +65,31 @@ class Timer {
   }
 }
 
-var decrypt = (key, defaultVal) => {
-  return dictGet(process.env, key, defaultVal);
+// When not on AWS, only returns the raw value
+var decrypt = (key, callback, defaultVal) => {
+  callback(null, dictGet(process.env, key, defaultVal));
 }
 
 // Try to import the aws-sdk, will always work on aws but may fail locally
 try {
   var AWS = require('aws-sdk');
   if(onAWS) {
-    decrypt = (key, defaultVal) => {
+    decrypt = (key, callback, defaultVal) => {
       const kms = new AWS.KMS();
       var val = dictGet(process.env, key, defaultVal);
       if(typeof val === "string") {
         kms.decrypt({ CiphertextBlob: new Buffer(val, 'base64') }, (err, data) => {
           if (err) {
-            console.log(err.message);
-            console.log("Couldn't decode value for key " + key + " using env val");
-            return val;
+            return callback(err);
           }
-          return data.Plaintext.toString('ascii');
+          return callback(null, data.Plaintext.toString('ascii'));
         });
       }
       return val;
     }
   }
 } catch (ex) {
-  // nothing
+  console.log(ex);
 }
 
 // This allowes decrypted values to only be decrypted once per lambda container
@@ -110,20 +109,31 @@ function dictGet(dict, key, defaultVal) {
   return defaultVal;
 }
 
-function getEnv(key, defaultVal, shouldThrow) {
+function getEnvEncrypted(key, callback, defaultVal, shouldThrow) {
   // handle default and throw and also get actual key
   if(!dictHas(process.env, key) && shouldThrow) {
     throw "Key \"" + key + "\" is not in the environment";
   }
 
   if(dictHas(decrypted, key)) {
-    return dictGet(decrypted, key, defaultVal);
+    return callback(null, dictGet(decrypted, key, defaultVal));
   }
 
-  var val = decrypt(key, defaultVal);
-  decrypted[key] = val;
+  decrypt(key, function(err, val) {
+    if(err){
+      return callback(err);
+    }
+    decrypted[key] = val;
+    return callback(null, val);
+  }, defaultVal);
+}
 
-  return val;
+function getEnv(key, defaultVal, shouldThrow) {
+  // handle default and throw and also get actual key
+  if(!dictHas(process.env, key) && shouldThrow) {
+    throw "Key \"" + key + "\" is not in the environment";
+  }
+  return dictGet(process.env, key, defaultVal);
 }
 
 
@@ -131,6 +141,7 @@ module.exports = {
   dictHas: dictHas,
   dictGet: dictGet,
   getEnv: getEnv,
+  getEnvEncrypted: getEnvEncrypted,
   onAWS: onAWS,
   Timer: Timer,
 };

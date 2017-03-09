@@ -53,6 +53,8 @@ try {
 } catch(e) {
   heslog.error(e);
 }
+// Assumes you have AWS_REGION set
+hesutil.getEnvEncrypted("ENCRYPTED_PWD", heslog.test);
 
 var timer = new hesutil.Timer()
 timer.start()
