@@ -91,6 +91,12 @@ class Logger(object):
       self.coreContext.update(context)
 
 
+    def removeContext(self, keys):
+      for key in keys:
+        if key in self.coreContext:
+          self.coreContext.pop(key, None)
+
+
   def __new__(self, outFile = None):
     if Logger.__instance is None:
       Logger.__instance = Logger.__onlyOne(outFile)
@@ -118,6 +124,10 @@ def addContext(context=None, **kwargs):
     context = {}
   context.update(kwargs)
   Logger().addContext(context)
+
+
+def removeContext(*args):
+  Logger().removeContext(args)
 
 
 def addLambdaContext(event, context, **kwargs):

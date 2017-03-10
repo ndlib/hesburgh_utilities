@@ -10,6 +10,7 @@ heslog.addContext({baz: "foo"});
 heslog.addContext({test: "this"});
 heslog.verbose(message);
 heslog.test(message);
+heslog.removeContext("baz");
 heslog.info(message);
 heslog.warn(message);
 heslog.error(message);

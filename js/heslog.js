@@ -122,6 +122,15 @@ class HesLogger {
   addContext(context) {
     this.coreContext = Object.assign({}, this.coreContext, context);
   }
+
+  removeContext(keys) {
+    for(var index in keys) {
+      var key = keys[index];
+      if(util.dictHas(this.coreContext, key)) {
+        delete this.coreContext[key];
+      }
+    }
+  }
 }
 
 // set up global singleton
@@ -155,6 +164,7 @@ module.exports = {
   setLevels: function() { var gl = getGlobal(); gl.setLevels.apply(gl, arguments); },
   setContext: function(context) { getGlobal().setContext(context); },
   addContext: function(context) { getGlobal().addContext(context); },
+  removeContext: function() { getGlobal().removeContext(arguments); },
   addLambdaContext: addLambdaContext,
   levels: {
     debug  : LEVEL_DEBUG,
