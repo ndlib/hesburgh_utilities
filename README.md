@@ -55,6 +55,8 @@ setContext|           | Set the general context that will print with every messa
 addContext|           | Add values to the general context
          | context    | (optional in py) Dictionary: arbitrary key-value pairs denoting context
          | (py only)**kwargs | optional arbitrary key-value pairs denoting context
+removeContext|           | Remove values from the general context
+         | 1 or more strings | Variable number of keys to remove
 addLambdaContext|           | Add the basic lambda context information (request id, etc)
          | event      | The event passed in from the lambda
          | context    | The context passed in from the lambda
@@ -70,7 +72,9 @@ import heslog
 
 heslog.setContext({"foo": "bar"})
 heslog.debug("message")
+heslog.addContext({"bar": "baz"})
 heslog.error("message", foo="baz", context="here") # this overrides foo for this message only
+heslog.removeContext("bar", "foo") # remove foo and bar from the context
 ...
 heslog.setLevels(heslog.LEVEL_ERROR)
 heslog.debug("message") # will not output to log
@@ -132,7 +136,7 @@ Function | Parameters | Description
 start    |            | start the timer
          | start      | Optional bool (default False): start the timer immediatly
 step     |            | mark a step in time, returns dt from the start time
-         | returnDTFromPrev | Optional bool (default False): return the dt from the previous step instead of from start time, if no previous step exists, will return dt from start 
+         | returnDTFromPrev | Optional bool (default False): return the dt from the previous step instead of from start time, if no previous step exists, will return dt from start
 getAvgStep |          | Get the average time for each step
 getSteps |            | Get the array of steps
 end      |            | Stop the timer/Get the total time

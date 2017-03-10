@@ -7,6 +7,7 @@ heslog.addContext(baz="foo")
 heslog.addContext({"test": "this"})
 heslog.verbose(message)
 heslog.info(message)
+heslog.removeContext("baz")
 heslog.warn(message)
 heslog.error(message)
 
