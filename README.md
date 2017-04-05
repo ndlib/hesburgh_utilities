@@ -142,7 +142,7 @@ var has = hesutil.dictHas(testDict, "key")
 |          | default    | Optional String: A default value if the netid is not a test account (defaults to null)
 
 #### datakeys.json
-For the most part, this is just a generic json file, it will be what's returned if the netid is found in the `get` call. There is one extra option: if the value is `{ "load_file": "file.json" }` that file will be loaded and replace the value with its contents. The `file.json` value must be a relative path to the `datakeys.json` file. This allows for logical splitting of data.
+For the most part, this is just a generic json file, it will be what's returned if the netid is found in the `get` call. There is one extra option: if the value is `{ "load_file": "file.json" }` that file will be loaded and replace the value with the contets of the `data` key contained within. The `file.json` value must be a relative path to the `datakeys.json` file and must contain json with a top level key `data`. The `data` key requirement allows the file to contain 1 string value or any other type if needed, eg `"data": "long string value"` or `"data": { "obj": "value"...}`
 ```
 // datakeys.json
 {
@@ -153,7 +153,9 @@ For the most part, this is just a generic json file, it will be what's returned 
 ```
 // bar.json
 {
-  "barkey": "barvalue",
+  "data": {
+    "barkey": "barvalue"
+  }
 }
 ```
 An example of what the return will be with the above data:
