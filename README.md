@@ -159,7 +159,7 @@ For the most part, this is just a generic json file, it will be what's returned 
 An example of what the return will be with the above data:
 ```
 foo = hestest.get("test_netid")
-# foo = { "key": "value", "foo", { "barkey": "barvalue" } }
+# foo = { "key": "value", "foo": { "barkey": "barvalue" } }
 ```
 The `load_file` key can be used at any level, the entire tree will be traversed to load all files. So in the example `bar.json` could also contain a `load_file` to load another file.
 #### Python
