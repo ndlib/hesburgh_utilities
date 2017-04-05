@@ -8,10 +8,10 @@ This project contains shared utilities to be used across all projects in multipl
 ## Instilation
 To install projects locally run ./setup.sh in the home directory. This will install the python module and link the javascript module to your global namespace.
 
-###JS
+### JS
 To install in a javascript project run `npm link hesburgh_util` in said project. This will link the globaly installed project to your local project. All `link` commands are creating symlinks so future development on the javascript project will automatically update any projects containting this one.
 
-###PY
+### PY
 To install the python library to another project, you must run `ln -s "/usr/local/lib/python2.7/site-packages/hesburgh"` in that project directory. This is only needed if your project is going to be packaged for lambda, as it must exist in the directory to be zipped up. Please also add "hesburgh/" to your .gitignore file after doing this.
 
 ## Utilities:
@@ -131,15 +131,56 @@ var has = hesutil.dictHas(testDict, "key")
 ```
 
 ### Test data (hestest)
+#### NOTE: The file `datakeys.json` is expected to be in the test data (whatever you name it) folder, schema described below
 | Function | Parameters | Description
 |----------|------------|------------
 | init     |            | Initialize the test data from specified location
-|          | base       | String: The relative location of the testdata folder location
+|          | base       | String: The base location of the test data
 |          | folder     | String: The name of the folder
 | get      |            | Get the data for specified netid, if it exists
 |          | netid      | String: the netid to check for
 |          | default    | Optional String: A default value if the netid is not a test account (defaults to null)
 
+#### datakeys.json
+For the most part, this is just a generic json file, it will be what's returned if the netid is found in the `get` call. There is one extra option: if the value is `{ "load_file": "file.json" }` that file will be loaded and replace the value with its contents. The `file.json` value must be a relative path to the `datakeys.json` file. This allows for logical splitting of data.
+```
+// datakeys.json
+{
+  "key": "value",
+  "foo": { "load_file": "bar.json" }
+}
+```
+```
+// bar.json
+{
+  "barkey": "barvalue",
+}
+```
+An example of what the return will be with the above data:
+```
+foo = hestest.get("test_netid")
+# foo = { "key": "value", "barkey", "barvalue" }
+```
+The `load_file` key can be used at any level, the entire tree will be traversed to load all files. So in the example `bar.json` could also contain a `load_file` to load another file.
+#### Python
+```
+from hesburgh import hestest
+
+# __file__ is required as the first param in python, it denotes the location of the calling file
+# Then the second param is the relative path of the test data folder
+hestest.init(__file__, "../testdata")
+hestest.get("hbeachey")
+```
+#### JS
+```
+const hesburgh = require("hesburgh_util");
+const hestest = hesburgh.hestest;
+
+# In JS the setup is slightly different, the first param is the relative path
+# The second param is the test data folder name
+hestest.init("./", "testdata")
+hestest.get("hbeachey")
+```
 
 ### Timer (in hesutil)
 | Function | Parameters | Description
