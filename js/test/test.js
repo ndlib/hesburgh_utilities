@@ -2,6 +2,10 @@
 
 const heslog = require('../heslog');
 const hesutil = require('../hesutil');
+const hestest = require('../hestest');
+
+hestest.init("../", "testdata")
+console.log(hestest.get("hbeachey"));
 
 heslog.setContext({foo: "bar"});
 var message = "message";
