@@ -89,7 +89,7 @@ try {
     }
   }
 } catch (ex) {
-  console.log(ex);
+  console.log("::: Couldn't import aws");
 }
 
 // This allowes decrypted values to only be decrypted once per lambda container

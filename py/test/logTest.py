@@ -1,4 +1,8 @@
-from hesburgh import heslog,hesutil
+from hesburgh import heslog,hesutil,hestest
+import json
+
+hestest.init(__file__, "testdata")
+print json.dumps(hestest.get("hbeachey"), indent=2)
 
 message = "message"
 heslog.setContext({"foo": "bar"})
