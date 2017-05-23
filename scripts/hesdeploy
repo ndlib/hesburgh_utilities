@@ -1,0 +1,286 @@
+#!/usr/local/bin/python
+
+import argparse
+import boto3
+import base64
+import os
+import zipfile
+import deployConfig
+
+from datetime import datetime
+from hesburgh import heslog, hesutil
+
+timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+deployDir = "tmp_%s" % timestamp
+
+
+########### ZIP
+def zipDir(zipf, toZip):
+  if os.path.isfile(toZip):
+    filePath = toZip
+    archivePath = os.path.relpath(toZip, '..')
+    heslog.verbose(toZip)
+    zipf.write(toZip, archivePath)
+  elif os.path.isdir(toZip):
+    for root, dirs, files in os.walk(toZip):
+      for file in files:
+        filePath = os.path.join(root, file)
+        archivePath = os.path.relpath(os.path.join(root, file), os.path.join(toZip, '..'))
+        zipf.write(filePath, archivePath)
+        heslog.verbose(filePath)
+  else:
+    heslog.error("trying to zip %s that is neither file or dir" % toZip)
+
+
+def makeZip(zipName, paths):
+  zipf = zipfile.ZipFile(zipName, 'w', zipfile.ZIP_DEFLATED)
+  heslog.verbose("Make zip %s" % zipName)
+  for path in paths:
+    zipDir(zipf, path)
+  zipf.close()
+
+
+############ LIFECYCLE
+class Lifecycle(object):
+  def __init__(self, args, config):
+    self.args = args
+    self.config = config
+
+
+  def _check(self, name, *exitOn):
+    for e in exitOn:
+      if vars(self.args).get(e):
+        heslog.info("Skipping %s because '%s' was specified" % (name, e))
+        return False
+    return True
+
+
+  def _encrypt(self, kmsKey, key, val):
+    if kmsKey:
+      heslog.info("Encrypting %s" % key)
+
+      client = boto3.client('kms')
+      response = client.encrypt(
+        KeyId=kmsKey,
+        Plaintext=val,
+      )
+      return base64.b64encode(response.get("CiphertextBlob")).decode("utf-8")
+
+
+  def _updateLambda(self, func, env, kmsKey):
+    heslog.info("Updating lambda '%s'" % func)
+
+    env = { k: self._encrypt(kmsKey, k, v) for k,v in env.iteritems() }
+
+    client = boto3.client('lambda')
+    response = client.update_function_configuration(
+      FunctionName=func,
+      Environment={
+        'Variables': env
+      },
+    )
+
+
+  def preDeploy(self):
+    heslog.addContext(stage="preDeploy")
+    if self.config.zips():
+      os.mkdir(deployDir)
+
+
+  def package(self):
+    heslog.addContext(stage="package")
+    heslog.info("Creating artifacts")
+
+    if self.config.zips():
+      for k,v in self.config.zips().iteritems():
+        makeZip("%s/%s.zip" % (deployDir, k), v)
+
+
+  def publish(self):
+    heslog.addContext(stage="publish")
+    client = boto3.client('s3')
+
+    if self._check("deploying files", "noAws"):
+      heslog.info("Uploading CF files")
+      for file in self.config.cloudformations():
+        heslog.verbose("Upload %s => s3://%s/%s/%s" % (file, self.args.deployBucket, self.config.deployFolder(), file))
+        client.upload_file(file, self.args.deployBucket, '%s/%s' % (self.config.deployFolder(), file))
+      if os.path.exists(deployDir):
+        heslog.info("Uploading project artifacts")
+        for root, dirs, files in os.walk(deployDir):
+          for file in files:
+            filename = "%s/%s" % (root, file)
+            heslog.verbose("Upload %s => s3://%s/%s/%s" % (filename, self.args.deployBucket, self.config.deployFolder(), file))
+            client.upload_file(filename, self.args.deployBucket, '%s/%s' % (self.config.deployFolder(), file))
+
+
+  def createOrUpdate(self):
+    client = boto3.client('cloudformation')
+    stackName = self.config.stackName()
+    path = self.config.deployFolder()
+    rootTemplate = "https://s3.amazonaws.com/%s/%s/root.yml" % (self.args.deployBucket, path)
+
+    params = [ { "ParameterKey": k, "ParameterValue": v } for k,v in self.config.parameters().iteritems() ]
+    tags = [ { "Key": k, "Value": v } for k,v in self.config.tags().iteritems() ]
+
+    created = False
+
+    if self._check("running cloudformation", "noAws", "publishOnly"):
+      try:
+        client = boto3.client('cloudformation')
+        response = client.describe_stacks(
+          StackName=stackName
+        )
+        created = True
+      except:
+        heslog.verbose("Stack %s does not exist" % (stackName))
+
+      if created:
+        heslog.addContext(stage="updateStack")
+        heslog.info("Updating Stack '%s'" % stackName)
+        response = client.update_stack(
+          StackName=stackName,
+          TemplateURL=rootTemplate,
+          Parameters=params,
+          Capabilities = [ 'CAPABILITY_IAM' ],
+          Tags = tags,
+        )
+        waiterId = 'stack_update_complete'
+      else:
+        heslog.addContext(stage="createStack")
+        heslog.info("Creating Stack '%s'" % stackName)
+        response = client.create_stack(
+          StackName=stackName,
+          TemplateURL=rootTemplate,
+          Parameters=params,
+          Capabilities = [ 'CAPABILITY_IAM' ],
+          Tags = tags,
+        )
+        waiterId = 'stack_create_complete'
+
+      waiter = client.get_waiter(waiterId)
+      waiter.wait(
+        StackName=response.get("StackId")
+      )
+
+
+  def postDeploy(self):
+    heslog.addContext(stage="postDeploy")
+
+    if self._check("lambda update" , "noAws", "publishOnly"):
+      for lambdaConf in self.config.lambdaVars():
+        self._updateLambda(lambdaConf.get("name"), lambdaConf.get("vars", {}), lambdaConf.get("key"))
+
+    # remove temp directory
+    if self._check("delete local artifacts", "keepLocal") and os.path.exists(deployDir):
+      for root, dirs, files in os.walk(deployDir):
+        for file in files:
+          heslog.verbose("Removing tmp file %s/%s" % (root, file))
+          os.remove(os.path.join(root, file))
+      heslog.verbose("Removing tmp dir %s" % deployDir)
+      os.rmdir(deployDir)
+
+
+  def deleteStack(self):
+    client = boto3.client('cloudformation')
+    stackName = self.config.stackName()
+    stackId = None
+
+    try:
+      client = boto3.client('cloudformation')
+      response = client.describe_stacks(
+        StackName=stackName
+      )
+      stackId = response.get("Stacks", [])[0].get("StackId")
+    except Exception as e:
+      heslog.error(e)
+
+
+    if self._check("stack delete", "noAws"):
+      heslog.info("Deleting stack %s" % stackName)
+      response = client.delete_stack(
+        StackName=stackName,
+      )
+
+      waiter = client.get_waiter('stack_delete_complete')
+      waiter.wait(
+        StackName=stackId
+      )
+
+
+  def run(self):
+    if not self.args.noAws and not hesutil.getEnv("AWS_ROLE_ARN"):
+      heslog.error("When 'noAws' has not been specified you must assume a role to run this script")
+      return
+
+    if self.args.noPublish and not self.args.deployFolder:
+      heslog.error("When specifying 'noPublish' you must also specify 'deployFolder'")
+      return
+
+    if self.args.delete:
+      self.deleteStack()
+      return
+
+    if self._check("publish and deploy", "envOnly"):
+      if self._check("publish steps", "noPublish"):
+        self.preDeploy()
+        self.package()
+        self.publish()
+
+      if self._check("cloudformation", "publishOnly", "envOnly"):
+        self.createOrUpdate()
+
+    self.postDeploy()
+
+
+if __name__ == "__main__":
+  heslog.addContext(stage="init")
+
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--stage', '-s', type=str, required=True,
+    help='The stage to deploy to')
+  parser.add_argument('--config', '-c', type=str,
+    help='Config file to use as input')
+
+  # override defaults
+  parser.add_argument('--deployBucket', type=str, default="testlibnd-cf",
+    help='The bucket the artifacts will be put into')
+  parser.add_argument('--stackName', type=str,
+    help='Override the stack name (default is $SERVICE-$STAGE)')
+  parser.add_argument('--deployFolder', type=str,
+    help='Override the deployment folder NO BEGINNING SLASH (default is $SERVICE/$STAGE/$TIMESTAMP')
+
+  # specify functionality
+  parser.add_argument('--delete', action='store_true', dest='delete',
+    help="Delete this stack")
+
+  parser.add_argument('--publishOnly', action='store_true', dest='publishOnly',
+    help="Publish files to the S3 bucket without calling the CF files")
+  parser.add_argument('--envOnly', action='store_true', dest='envOnly',
+    help="Update lambda environment without publishing/deploying")
+
+  parser.add_argument('--noPublish', action='store_true', dest='noPublish',
+    help="Don't create or publish artifacts (CF, code zip, etc) NOTE: You must override deployFolder if you specify this argument")
+  parser.add_argument('--noAws', action='store_true', dest='noAws',
+    help="Don't interact with aws at all")
+  parser.add_argument('--keepLocal', action='store_true', dest='keepLocal',
+    help="Don't delete locally created artifacts on completion")
+
+  # Logging
+  parser.add_argument('--verbose', action='store_true', dest='verbose',
+    help="Verbose output")
+
+  args = parser.parse_args()
+
+  if args.verbose:
+    heslog.setLevels()
+  # elif args.debug:
+    # heslog.setLevels(heslog.LEVEL_INFO, heslog.LEVEL_WARN, heslog.LEVEL_ERROR, heslog.LEVEL_DEBUG)
+  else:
+    heslog.setLevels(heslog.LEVEL_INFO, heslog.LEVEL_WARN, heslog.LEVEL_ERROR)
+
+  confName = args.config or "config.yml"
+  config = deployConfig.Config(confName, args, timestamp)
+  life = Lifecycle(args, config)
+  life.run()
+
