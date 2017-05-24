@@ -67,8 +67,13 @@ class Config(object):
       heslog.error("Config requires a 'service' field with the service name")
       valid = False
 
-    if type(self.config.get("cloudformations")) is not list:
-      heslog.error("Config requires a 'cloudformations' field of type array")
+    if len(self.cloudformations()) <= 0:
+      heslog.error("'cloudformations' must specify at least one template file")
+      valid = False
+
+    call = self.config.get("call", "root.yml")
+    if type(call) is not str or call not in self.cloudformations():
+      heslog.error("'call' must specify exactly one item in the 'cloudformations' list (default: root.yml)")
       valid = False
 
     for k,v in self.config.get("parameters", {}).iteritems():
@@ -114,8 +119,16 @@ class Config(object):
     return self.params
 
 
+  def cfcall(self):
+    cfs = self.config.get("call", "root.yml")
+    return cfs
+
+
   def cloudformations(self):
-    return self.config.get("cloudformations")
+    cfs = self.config.get("cloudformations")
+    if type(cfs) is not list:
+      cfs = [cfs]
+    return cfs
 
 
   def tags(self):

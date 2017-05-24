@@ -1,12 +1,16 @@
 #!/usr/local/bin/python
 
-import argparse
 import boto3
+from botocore.exceptions import ClientError
+
+import argparse
 import base64
 import os
 import zipfile
-import deployConfig
+import time
+import sys
 
+import deployConfig
 from datetime import datetime
 from hesburgh import heslog, hesutil
 
@@ -41,10 +45,15 @@ def makeZip(zipName, paths):
 
 
 ############ LIFECYCLE
+class Abort(Exception):
+  pass
+
 class Lifecycle(object):
-  def __init__(self, args, config):
+  def __init__(self, args, config, timer):
     self.args = args
     self.config = config
+    self.timer = timer
+    self.deployFailure = False
 
 
   def _check(self, name, *exitOn):
@@ -83,8 +92,23 @@ class Lifecycle(object):
 
   def preDeploy(self):
     heslog.addContext(stage="preDeploy")
-    if self.config.zips():
-      os.mkdir(deployDir)
+
+    if self._check("artifact creation", "noPublish"):
+      if self.config.zips():
+        os.mkdir(deployDir)
+
+    if self._check("template validation", "noAws"):
+      try:
+        heslog.info("Validating Templates")
+        client = boto3.client("cloudformation")
+        for file in self.config.cloudformations():
+          with open(file) as f:
+            response = client.validate_template(TemplateBody=f.read())
+            if file == self.config.cfcall():
+              self.capabilities = response.get("Capabilities", [])
+      except Exception as e:
+        heslog.error(e)
+        raise Abort("Validation Failure")
 
 
   def package(self):
@@ -94,35 +118,49 @@ class Lifecycle(object):
     if self.config.zips():
       for k,v in self.config.zips().iteritems():
         makeZip("%s/%s.zip" % (deployDir, k), v)
+      heslog.info("Finished zipping in %ss" % (self.timer.step(True)))
 
 
   def publish(self):
     heslog.addContext(stage="publish")
     client = boto3.client('s3')
 
-    if self._check("deploying files", "noAws"):
-      heslog.info("Uploading CF files")
-      for file in self.config.cloudformations():
-        heslog.verbose("Upload %s => s3://%s/%s/%s" % (file, self.args.deployBucket, self.config.deployFolder(), file))
-        client.upload_file(file, self.args.deployBucket, '%s/%s' % (self.config.deployFolder(), file))
-      if os.path.exists(deployDir):
-        heslog.info("Uploading project artifacts")
-        for root, dirs, files in os.walk(deployDir):
-          for file in files:
-            filename = "%s/%s" % (root, file)
-            heslog.verbose("Upload %s => s3://%s/%s/%s" % (filename, self.args.deployBucket, self.config.deployFolder(), file))
-            client.upload_file(filename, self.args.deployBucket, '%s/%s' % (self.config.deployFolder(), file))
+    try:
+      if self._check("deploying files", "noAws"):
+        heslog.info("Publishing to s3://%s/%s" % (self.args.deployBucket, self.config.deployFolder()))
+        heslog.info("Uploading CF files")
+        for file in self.config.cloudformations():
+          heslog.verbose("Upload %s => s3://%s/%s/%s" % (file, self.args.deployBucket, self.config.deployFolder(), file))
+          client.upload_file(file, self.args.deployBucket, '%s/%s' % (self.config.deployFolder(), file))
+        if os.path.exists(deployDir):
+          heslog.info("Uploading project artifacts")
+          for root, dirs, files in os.walk(deployDir):
+            for file in files:
+              filename = "%s/%s" % (root, file)
+              heslog.verbose("Upload %s => s3://%s/%s/%s" % (filename, self.args.deployBucket, self.config.deployFolder(), file))
+              client.upload_file(filename, self.args.deployBucket, '%s/%s' % (self.config.deployFolder(), file))
+        heslog.info("Finished publishing in %ss" % (self.timer.step(True)))
+    except Exception as e:
+      heslog.error(e)
+      raise Abort("Publish Error")
 
 
   def createOrUpdate(self):
     client = boto3.client('cloudformation')
     stackName = self.config.stackName()
     path = self.config.deployFolder()
-    rootTemplate = "https://s3.amazonaws.com/%s/%s/root.yml" % (self.args.deployBucket, path)
+    rootTemplate = "https://s3.amazonaws.com/%s/%s/%s" % (self.args.deployBucket, path, self.config.cfcall())
 
     params = [ { "ParameterKey": k, "ParameterValue": v } for k,v in self.config.parameters().iteritems() ]
     tags = [ { "Key": k, "Value": v } for k,v in self.config.tags().iteritems() ]
 
+    stackArgs = {
+      "StackName": stackName,
+      "TemplateURL": rootTemplate,
+      "Parameters": params,
+      "Capabilities": self.capabilities,
+      "Tags": tags,
+    }
     created = False
 
     if self._check("running cloudformation", "noAws", "publishOnly"):
@@ -132,44 +170,38 @@ class Lifecycle(object):
           StackName=stackName
         )
         created = True
-      except:
+      except ClientError:
         heslog.verbose("Stack %s does not exist" % (stackName))
 
-      if created:
-        heslog.addContext(stage="updateStack")
-        heslog.info("Updating Stack '%s'" % stackName)
-        response = client.update_stack(
-          StackName=stackName,
-          TemplateURL=rootTemplate,
-          Parameters=params,
-          Capabilities = [ 'CAPABILITY_IAM' ],
-          Tags = tags,
-        )
-        waiterId = 'stack_update_complete'
-      else:
-        heslog.addContext(stage="createStack")
-        heslog.info("Creating Stack '%s'" % stackName)
-        response = client.create_stack(
-          StackName=stackName,
-          TemplateURL=rootTemplate,
-          Parameters=params,
-          Capabilities = [ 'CAPABILITY_IAM' ],
-          Tags = tags,
-        )
-        waiterId = 'stack_create_complete'
+      try:
+        if created:
+          heslog.addContext(stage="updateStack")
+          heslog.info("Updating Stack '%s'" % stackName)
+          response = client.update_stack(**stackArgs)
+          waiterId = 'stack_update_complete'
+          self.waitUpdate(response.get("StackId"))
+        else:
+          heslog.addContext(stage="createStack")
+          heslog.info("Creating Stack '%s'" % stackName)
+          response = client.create_stack(**stackArgs)
+          waiterId = 'stack_create_complete'
+          self.waitCreate(response.get("StackId"))
+      except ClientError as e:
+        heslog.error(e)
+        self.deployFailure = True
 
-      waiter = client.get_waiter(waiterId)
-      waiter.wait(
-        StackName=response.get("StackId")
-      )
+      heslog.info("CF Finished in %ss" % (self.timer.step(True)))
 
 
   def postDeploy(self):
     heslog.addContext(stage="postDeploy")
 
-    if self._check("lambda update" , "noAws", "publishOnly"):
+    if (self._check("lambda update" , "noAws", "publishOnly")
+        and len(self.config.lambdaVars()) > 0
+        and not self.deployFailure):
       for lambdaConf in self.config.lambdaVars():
         self._updateLambda(lambdaConf.get("name"), lambdaConf.get("vars", {}), lambdaConf.get("key"))
+      heslog.info("Finished Updating Lambdas in %ss" % (self.timer.step(True)))
 
     # remove temp directory
     if self._check("delete local artifacts", "keepLocal") and os.path.exists(deployDir):
@@ -182,6 +214,7 @@ class Lifecycle(object):
 
 
   def deleteStack(self):
+    heslog.addContext(stage="deleteStack")
     client = boto3.client('cloudformation')
     stackName = self.config.stackName()
     stackId = None
@@ -193,7 +226,7 @@ class Lifecycle(object):
       )
       stackId = response.get("Stacks", [])[0].get("StackId")
     except Exception as e:
-      heslog.error(e)
+      raise Abort(e)
 
 
     if self._check("stack delete", "noAws"):
@@ -202,35 +235,84 @@ class Lifecycle(object):
         StackName=stackName,
       )
 
-      waiter = client.get_waiter('stack_delete_complete')
-      waiter.wait(
-        StackName=stackId
-      )
+      self.waitDelete(stackId)
+      heslog.info("Deleted stack in %s" % (self.timer.step(True)))
 
 
   def run(self):
-    if not self.args.noAws and not hesutil.getEnv("AWS_ROLE_ARN"):
-      heslog.error("When 'noAws' has not been specified you must assume a role to run this script")
-      return
+    try:
+      if not self.args.noAws and not hesutil.getEnv("AWS_ROLE_ARN"):
+        heslog.error("When 'noAws' has not been specified you must assume a role to run this script")
+        return
 
-    if self.args.noPublish and not self.args.deployFolder:
-      heslog.error("When specifying 'noPublish' you must also specify 'deployFolder'")
-      return
+      if self.args.noPublish and not self.args.deployFolder:
+        heslog.error("When specifying 'noPublish' you must also specify 'deployFolder'")
+        return
 
-    if self.args.delete:
-      self.deleteStack()
-      return
+      if self.args.delete:
+        self.deleteStack()
+        return
 
-    if self._check("publish and deploy", "envOnly"):
-      if self._check("publish steps", "noPublish"):
+      if self._check("publish and deploy", "envOnly"):
         self.preDeploy()
-        self.package()
-        self.publish()
 
-      if self._check("cloudformation", "publishOnly", "envOnly"):
-        self.createOrUpdate()
+        if self._check("publish steps", "noPublish"):
+          self.package()
+          self.publish()
 
-    self.postDeploy()
+        if self._check("cloudformation", "publishOnly", "envOnly"):
+          self.createOrUpdate()
+
+      self.postDeploy()
+    except (Abort, ClientError) as e:
+      heslog.setContext({})
+      heslog.info("Aborting due to %s" % e)
+    heslog.setContext({})
+
+  ############ CF WAIT
+  def CFWait(self, stackId, doneState, progressState):
+    client = boto3.client('cloudformation')
+    try:
+      while True:
+        sys.stdout.write(".")
+        sys.stdout.flush()
+        response = client.describe_stacks(
+          StackName=stackId
+        )
+
+        stack = response.get("Stacks", [])[0]
+        status = stack.get("StackStatus")
+        if status == doneState:
+          print
+          return True
+        elif status != progressState:
+          self.deployFailure = True
+          print
+          if status == "ROLLBACK_IN_PROGRESS":
+            heslog.error(stack.get("StackStatusReason"))
+          else:
+            print status
+            print stack.get("StackStatusReason")
+          return False
+
+        time.sleep(7)
+    except Exception as e:
+      heslog.error(e)
+
+
+  def waitCreate(self, stackId):
+    if self.CFWait(stackId, "CREATE_COMPLETE", "CREATE_IN_PROGRESS"):
+      heslog.info("Stack Creation Complete")
+
+
+  def waitUpdate(self, stackId):
+    if self.CFWait(stackId, "UPDATE_COMPLETE", "UPDATE_IN_PROGRESS"):
+      heslog.info("Stack Update Complete")
+
+
+  def waitDelete(self, stackId):
+    if self.CFWait(stackId, "DELETE_COMPLETE", "DELETE_IN_PROGRESS"):
+      heslog.info("Stack Delete Complete")
 
 
 if __name__ == "__main__":
@@ -274,13 +356,15 @@ if __name__ == "__main__":
 
   if args.verbose:
     heslog.setLevels()
-  # elif args.debug:
-    # heslog.setLevels(heslog.LEVEL_INFO, heslog.LEVEL_WARN, heslog.LEVEL_ERROR, heslog.LEVEL_DEBUG)
   else:
     heslog.setLevels(heslog.LEVEL_INFO, heslog.LEVEL_WARN, heslog.LEVEL_ERROR)
 
+  timer = hesutil.Timer(True)
+
   confName = args.config or "config.yml"
   config = deployConfig.Config(confName, args, timestamp)
-  life = Lifecycle(args, config)
+  life = Lifecycle(args, config, timer)
   life.run()
+
+  heslog.info("Total Time: %s" % timer.end())
 
