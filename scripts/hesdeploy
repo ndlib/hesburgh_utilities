@@ -15,23 +15,25 @@ from datetime import datetime
 from hesburgh import heslog, hesutil
 
 timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-deployDir = "tmp_%s" % timestamp
+deployDir = "deploy_%s" % timestamp
 
 
 ########### ZIP
 def zipDir(zipf, toZip):
+  # If we're just zipping one file
   if os.path.isfile(toZip):
     filePath = toZip
     archivePath = os.path.relpath(toZip, '..')
     heslog.verbose(toZip)
     zipf.write(toZip, archivePath)
   elif os.path.isdir(toZip):
+    # Walk the dir, add every file to the zip
     for root, dirs, files in os.walk(toZip):
       for file in files:
         filePath = os.path.join(root, file)
         archivePath = os.path.relpath(os.path.join(root, file), os.path.join(toZip, '..'))
         zipf.write(filePath, archivePath)
-        heslog.verbose(filePath)
+        heslog.verbose("Zipping %s" % filePath)
   else:
     heslog.error("trying to zip %s that is neither file or dir" % toZip)
 
@@ -55,7 +57,11 @@ class Lifecycle(object):
     self.timer = timer
     self.deployFailure = False
 
+    self.capabilities = []
+    self.encrypted = {}
 
+
+  # Used to check if any of the specified "exitOn" args were passed in as cli args
   def _check(self, name, *exitOn):
     for e in exitOn:
       if vars(self.args).get(e):
@@ -65,15 +71,24 @@ class Lifecycle(object):
 
 
   def _encrypt(self, kmsKey, key, val):
-    if kmsKey:
-      heslog.info("Encrypting %s" % key)
+    if kmsKey and key not in self.encrypted:
+      try:
+        heslog.verbose("Encrypting %s" % key)
 
-      client = boto3.client('kms')
-      response = client.encrypt(
-        KeyId=kmsKey,
-        Plaintext=val,
-      )
-      return base64.b64encode(response.get("CiphertextBlob")).decode("utf-8")
+        client = boto3.client('kms')
+        response = client.encrypt(
+          KeyId=kmsKey,
+          Plaintext=val,
+        )
+        self.encrypted[key] = base64.b64encode(response.get("CiphertextBlob")).decode("utf-8")
+      except Exception as e:
+        heslog.error(e)
+        raise Abort("Encryption Error")
+
+    elif key not in self.encrypted:
+      self.encrypted[key] = val
+
+    return self.encrypted[key]
 
 
   def _updateLambda(self, func, env, kmsKey):
@@ -81,13 +96,16 @@ class Lifecycle(object):
 
     env = { k: self._encrypt(kmsKey, k, v) for k,v in env.iteritems() }
 
-    client = boto3.client('lambda')
-    response = client.update_function_configuration(
-      FunctionName=func,
-      Environment={
-        'Variables': env
-      },
-    )
+    try:
+      client = boto3.client('lambda')
+      response = client.update_function_configuration(
+        FunctionName=func,
+        Environment={
+          'Variables': env
+        },
+      )
+    except ClientError as e:
+      heslog.error(e)
 
 
   def preDeploy(self):
@@ -102,6 +120,7 @@ class Lifecycle(object):
         heslog.info("Validating Templates")
         client = boto3.client("cloudformation")
         for file in self.config.cloudformations():
+          heslog.verbose("Validating %s" % file)
           with open(file) as f:
             response = client.validate_template(TemplateBody=f.read())
             if file == self.config.cfcall():
@@ -129,9 +148,11 @@ class Lifecycle(object):
       if self._check("deploying files", "noAws"):
         heslog.info("Publishing to s3://%s/%s" % (self.args.deployBucket, self.config.deployFolder()))
         heslog.info("Uploading CF files")
+
         for file in self.config.cloudformations():
           heslog.verbose("Upload %s => s3://%s/%s/%s" % (file, self.args.deployBucket, self.config.deployFolder(), file))
           client.upload_file(file, self.args.deployBucket, '%s/%s' % (self.config.deployFolder(), file))
+
         if os.path.exists(deployDir):
           heslog.info("Uploading project artifacts")
           for root, dirs, files in os.walk(deployDir):
@@ -139,6 +160,7 @@ class Lifecycle(object):
               filename = "%s/%s" % (root, file)
               heslog.verbose("Upload %s => s3://%s/%s/%s" % (filename, self.args.deployBucket, self.config.deployFolder(), file))
               client.upload_file(filename, self.args.deployBucket, '%s/%s' % (self.config.deployFolder(), file))
+
         heslog.info("Finished publishing in %ss" % (self.timer.step(True)))
     except Exception as e:
       heslog.error(e)
@@ -163,6 +185,8 @@ class Lifecycle(object):
     }
     created = False
 
+    heslog.verbose("Stack args %s" % stackArgs)
+
     if self._check("running cloudformation", "noAws", "publishOnly"):
       try:
         client = boto3.client('cloudformation')
@@ -176,13 +200,13 @@ class Lifecycle(object):
       try:
         if created:
           heslog.addContext(stage="updateStack")
-          heslog.info("Updating Stack '%s'" % stackName)
+          heslog.info("Updating Stack '%s' with %s" % (stackName, self.config.cfcall()))
           response = client.update_stack(**stackArgs)
           waiterId = 'stack_update_complete'
           self.waitUpdate(response.get("StackId"))
         else:
           heslog.addContext(stage="createStack")
-          heslog.info("Creating Stack '%s'" % stackName)
+          heslog.info("Creating Stack '%s' with %s" % (stackName, self.config.cfcall()))
           response = client.create_stack(**stackArgs)
           waiterId = 'stack_create_complete'
           self.waitCreate(response.get("StackId"))
@@ -282,20 +306,26 @@ class Lifecycle(object):
 
         stack = response.get("Stacks", [])[0]
         status = stack.get("StackStatus")
-        if status == doneState:
+        # use startswith because "update_complete_clenaup_in_progress"
+        # is also a valid done state
+        if status.startswith(doneState):
+          #newline
           print
           return True
         elif status != progressState:
           self.deployFailure = True
+          #newline
           print
           if status == "ROLLBACK_IN_PROGRESS":
             heslog.error(stack.get("StackStatusReason"))
           else:
+            # Likely want to handle the other non-success statuses eventually
+            # But this at least gives us the needed information
             print status
             print stack.get("StackStatusReason")
           return False
 
-        time.sleep(7)
+        time.sleep(10)
     except Exception as e:
       heslog.error(e)
 
