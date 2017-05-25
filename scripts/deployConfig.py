@@ -1,6 +1,7 @@
 import yaml
 import os
 from hesburgh import heslog, hesutil
+import re
 
 
 class Config(object):
@@ -17,6 +18,8 @@ class Config(object):
     self.lambdaEnvs = []
     self.params = {}
     self.stackTags = {}
+
+    self.replaceRe = re.compile("\${(.*)}")
 
     if not self._validate():
       raise Exception("Config validation failed")
@@ -44,20 +47,22 @@ class Config(object):
           valid = False
           continue
 
-        name = var.get("name")
+        name = self.confSub(var.get("name"))
 
-        if "env" not in var:
+        if "value" not in var:
           heslog.error("Trying to set %s for %s with no value" % (name, lambdaName))
           valid = False
           continue
 
-        environs[name] = hesutil.getEnv(var.get("env"), throw=True)
+        environs[name] = self.confSub(var.get("value"))
 
       self.lambdaEnvs.append({
         "name": lambdaName,
         "key": key,
         "vars": environs,
       })
+
+    heslog.verbose("Lambda environments: %s" % self.lambdaEnvs)
     return valid
 
 
@@ -94,7 +99,9 @@ class Config(object):
     ret = ret.replace("$DEPLOY_BUCKET", self.args.deployBucket)
     ret = ret.replace("$DEPLOY_FOLDER", self.deployFolder())
     ret = ret.replace("$TIMESTAMP", self.timestamp)
-    ret = ret.replace("$USER", hesutil.getEnv("USER", ""))
+
+    for envVal in self.replaceRe.findall(ret):
+      ret = ret.replace("${%s}" % envVal, hesutil.getEnv(envVal, throw=True))
     return ret
 
 

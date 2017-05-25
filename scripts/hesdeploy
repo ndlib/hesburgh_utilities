@@ -3,6 +3,7 @@
 import boto3
 from botocore.exceptions import ClientError
 
+import re
 import argparse
 import base64
 import os
@@ -111,11 +112,8 @@ class Lifecycle(object):
   def preDeploy(self):
     heslog.addContext(stage="preDeploy")
 
-    if self._check("artifact creation", "noPublish"):
-      if self.config.zips():
-        os.mkdir(deployDir)
-
     if self._check("template validation", "noAws"):
+      file = "_"
       try:
         heslog.info("Validating Templates")
         client = boto3.client("cloudformation")
@@ -127,7 +125,11 @@ class Lifecycle(object):
               self.capabilities = response.get("Capabilities", [])
       except Exception as e:
         heslog.error(e)
-        raise Abort("Validation Failure")
+        raise Abort("Validation Failure on %s" % file)
+
+    if self._check("artifact creation", "noPublish"):
+      if self.config.zips():
+        os.mkdir(deployDir)
 
 
   def package(self):
@@ -388,6 +390,10 @@ if __name__ == "__main__":
     heslog.setLevels()
   else:
     heslog.setLevels(heslog.LEVEL_INFO, heslog.LEVEL_WARN, heslog.LEVEL_ERROR)
+
+  pattern = re.compile("^[a-zA-Z0-9]*$")
+  if not pattern.match(args.stage):
+    heslog.error("For the safety of any templates it is passed to, 'stage' must only contain alpha-numeric characters")
 
   timer = hesutil.Timer(True)
 
