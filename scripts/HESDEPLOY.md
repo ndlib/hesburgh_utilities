@@ -14,11 +14,11 @@ You must have a config file with infomation about the stack(s) and file(s) you'l
 
 The above example has all possible fields for visibility. Here is the most basic required configuration file:
 ```
-Service: [serviceName]
+Service: serviceName
 
 Stacks:
   Single:
-    - Name: [stackname]
+    - Name: stackname
       Template: root.yml
 
 Artifacts:
@@ -41,28 +41,27 @@ These can be chained with eachother and with environment variables, for instance
 
 ## Usage
 
-The most basic usage is as follows:
+After assuming the required role and sourcing required secrets files, the most basic usage is as follows:
 ```
 hesdeploy -s [stage]
 ```
 
-Below is an explanation of every option available
-
+## Options
 | Option      | Parameter  | Description
-|-------------|------------|----------|----------
-|--help, -h   |            | Show the help message
-|--stage, -s  | stage      | The stage to deploy to (eg. dev). Must only contain alpha-numeric ascii characters
-|--config, -c | config     | Config file to use as input (default is config.yml)
-|--deployBucket| bucketName | The bucket the artifacts will be put into (default is testlibnd-cf)
-|--deployFolder| folder    | Override the deployment folder (default is $SERVICE/$STAGE/$TIMESTAMP)
-|--delete      |           | Delete the stack(s)
-|--publishOnly |           | Publish files to the S3 bucket without calling the CF files
-|--envOnly    |            | Update lambda environment(s) without publishing/deploying
-|--noPublish  |            | Don't create or publish artifacts (CF, code zip, etc) NOTE: You must override deployFolder if you specify this argument
-|--noAws      |            | Don't interact with aws at all
-|--keepLocal  |            | Don't delete locally created artifacts on completion
-|--verbose    |            | Verbose output
-|--debug      |            | Debug output
+|-------------|------------|------------
+| --help, -h   |            | Show the help message
+| --stage, -s  | stage      | The stage to deploy to (eg. dev). Must only contain alpha-numeric ascii characters
+| --config, -c | config     | Config file to use as input (default is config.yml)
+| --deployBucket | bucketName | The bucket the artifacts will be put into (default is testlibnd-cf)
+| --deployFolder | folder    | Override the deployment folder (default is $SERVICE/$STAGE/$TIMESTAMP)
+| --delete      |           | Delete the stack(s)
+| --publishOnly |           | Publish files to the S3 bucket without calling the CF files
+| --envOnly    |            | Update lambda environment(s) without publishing/deploying
+| --noPublish  |            | Don't create or publish artifacts (CF, code zip, etc) NOTE: You must override deployFolder if you specify this argument
+| --noAws      |            | Don't interact with aws at all
+| --keepLocal  |            | Don't delete locally created artifacts on completion
+| --verbose    |            | Verbose output
+| --debug      |            | Debug output
 
 
 ## Tech Notes
