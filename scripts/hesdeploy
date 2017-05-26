@@ -3,6 +3,7 @@
 import boto3
 from botocore.exceptions import ClientError
 
+import fnmatch
 import re
 import argparse
 import base64
@@ -18,25 +19,27 @@ from hesburgh import heslog, hesutil
 timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
 deployDir = "deploy_%s" % timestamp
 
+########### WALK
+def walk(filefolder):
+  toSearch = filefolder if type(filefolder) is str else filefolder.get("")
+
+  if os.path.isfile(filefolder):
+    realPath = filefolder
+    yield realPath, os.path.basename(realPath)
+  elif os.path.isdir(filefolder):
+    for root, dirs, files in os.walk(filefolder, followlinks=True):
+      for file in files:
+        realPath = os.path.join(root, file)
+        yield realPath, file
+  else:
+    heslog.error("Trying to walk %s that is neither file nor folder" % filefolder)
 
 ########### ZIP
 def zipDir(zipf, toZip):
-  # If we're just zipping one file
-  if os.path.isfile(toZip):
-    filePath = toZip
-    archivePath = os.path.relpath(toZip, '..')
-    heslog.verbose(toZip)
-    zipf.write(toZip, archivePath)
-  elif os.path.isdir(toZip):
-    # Walk the dir, add every file to the zip
-    for root, dirs, files in os.walk(toZip):
-      for file in files:
-        filePath = os.path.join(root, file)
-        archivePath = os.path.relpath(os.path.join(root, file), os.path.join(toZip, '..'))
-        zipf.write(filePath, archivePath)
-        heslog.verbose("Zipping %s" % filePath)
-  else:
-    heslog.error("trying to zip %s that is neither file or dir" % toZip)
+  for realPath, filename in walk(toZip):
+    archivePath = os.path.relpath(realPath, '..')
+    heslog.verbose("%s => %s" % (realPath, archivePath))
+    zipf.write(realPath, archivePath)
 
 
 def makeZip(zipName, paths):
@@ -58,7 +61,6 @@ class Lifecycle(object):
     self.timer = timer
     self.deployFailure = False
 
-    self.capabilities = []
     self.encrypted = {}
 
 
@@ -99,10 +101,16 @@ class Lifecycle(object):
 
     try:
       client = boto3.client('lambda')
+      # Get the current environment so we don't lose things we're not overwriting
+      response = client.get_function_configuration(FunctionName=func)
+      currentEnv = response.get("Environment", {}).get("Variables", {})
+      currentEnv.update(env)
+      print currentEnv
+
       response = client.update_function_configuration(
         FunctionName=func,
         Environment={
-          'Variables': env
+          'Variables': currentEnv
         },
       )
     except ClientError as e:
@@ -117,18 +125,17 @@ class Lifecycle(object):
       try:
         heslog.info("Validating Templates")
         client = boto3.client("cloudformation")
-        for file in self.config.cloudformations():
+        for file in self.config.artifactTemplates():
           heslog.verbose("Validating %s" % file)
           with open(file) as f:
             response = client.validate_template(TemplateBody=f.read())
-            if file == self.config.cfcall():
-              self.capabilities = response.get("Capabilities", [])
+            self.config.setTemplateCapabilities(file, response.get("Capabilities", []))
       except Exception as e:
         heslog.error(e)
         raise Abort("Validation Failure on %s" % file)
 
     if self._check("artifact creation", "noPublish"):
-      if self.config.zips():
+      if self.config.artifactZips():
         os.mkdir(deployDir)
 
 
@@ -136,32 +143,28 @@ class Lifecycle(object):
     heslog.addContext(stage="package")
     heslog.info("Creating artifacts")
 
-    if self.config.zips():
-      for k,v in self.config.zips().iteritems():
-        makeZip("%s/%s.zip" % (deployDir, k), v)
-      heslog.info("Finished zipping in %ss" % (self.timer.step(True)))
+    for zipConf in self.config.artifactZips():
+      makeZip("%s/%s.zip" % (deployDir, zipConf.get("Name")), zipConf.get("Files"))
+    heslog.info("Finished zipping in %ss" % (self.timer.step(True)))
 
 
   def publish(self):
     heslog.addContext(stage="publish")
-    client = boto3.client('s3')
-
     try:
-      if self._check("deploying files", "noAws"):
+      if self._check("publishing files", "noAws"):
+        client = boto3.client('s3')
         heslog.info("Publishing to s3://%s/%s" % (self.args.deployBucket, self.config.deployFolder()))
-        heslog.info("Uploading CF files")
 
-        for file in self.config.cloudformations():
+        heslog.info("Uploading artifact templates")
+        for file in self.config.artifactTemplates():
           heslog.verbose("Upload %s => s3://%s/%s/%s" % (file, self.args.deployBucket, self.config.deployFolder(), file))
           client.upload_file(file, self.args.deployBucket, '%s/%s' % (self.config.deployFolder(), file))
 
         if os.path.exists(deployDir):
-          heslog.info("Uploading project artifacts")
-          for root, dirs, files in os.walk(deployDir):
-            for file in files:
-              filename = "%s/%s" % (root, file)
-              heslog.verbose("Upload %s => s3://%s/%s/%s" % (filename, self.args.deployBucket, self.config.deployFolder(), file))
-              client.upload_file(filename, self.args.deployBucket, '%s/%s' % (self.config.deployFolder(), file))
+          heslog.info("Uploading artifact zips")
+          for realPath, filename in walk(deployDir):
+            heslog.verbose("Upload %s => s3://%s/%s/%s" % (realPath, self.args.deployBucket, self.config.deployFolder(), filename))
+            client.upload_file(realPath, self.args.deployBucket, '%s/%s' % (self.config.deployFolder(), filename))
 
         heslog.info("Finished publishing in %ss" % (self.timer.step(True)))
     except Exception as e:
@@ -169,27 +172,27 @@ class Lifecycle(object):
       raise Abort("Publish Error")
 
 
-  def createOrUpdate(self):
-    client = boto3.client('cloudformation')
-    stackName = self.config.stackName()
+  def createOrUpdate(self, stackConfig):
+    stackName = stackConfig.get("name")
     path = self.config.deployFolder()
-    rootTemplate = "https://s3.amazonaws.com/%s/%s/%s" % (self.args.deployBucket, path, self.config.cfcall())
+    template = stackConfig.get("template")
+    rootTemplate = "https://s3.amazonaws.com/%s/%s/%s" % (self.args.deployBucket, path, template)
 
-    params = [ { "ParameterKey": k, "ParameterValue": v } for k,v in self.config.parameters().iteritems() ]
-    tags = [ { "Key": k, "Value": v } for k,v in self.config.tags().iteritems() ]
+    params = [ { "ParameterKey": k, "ParameterValue": v } for k,v in stackConfig.get("params").iteritems() ]
+    tags = [ { "Key": k, "Value": v } for k,v in stackConfig.get("tags").iteritems() ]
 
     stackArgs = {
       "StackName": stackName,
       "TemplateURL": rootTemplate,
       "Parameters": params,
-      "Capabilities": self.capabilities,
+      "Capabilities": stackConfig.get("capabilities"),
       "Tags": tags,
     }
     created = False
 
     heslog.verbose("Stack args %s" % stackArgs)
 
-    if self._check("running cloudformation", "noAws", "publishOnly"):
+    if self._check("running cloudformation for %s" % template, "noAws", "publishOnly"):
       try:
         client = boto3.client('cloudformation')
         response = client.describe_stacks(
@@ -202,13 +205,13 @@ class Lifecycle(object):
       try:
         if created:
           heslog.addContext(stage="updateStack")
-          heslog.info("Updating Stack '%s' with %s" % (stackName, self.config.cfcall()))
+          heslog.info("Updating Stack '%s' with %s" % (stackName, template))
           response = client.update_stack(**stackArgs)
           waiterId = 'stack_update_complete'
           self.waitUpdate(response.get("StackId"))
         else:
           heslog.addContext(stage="createStack")
-          heslog.info("Creating Stack '%s' with %s" % (stackName, self.config.cfcall()))
+          heslog.info("Creating Stack '%s' with %s" % (stackName, template))
           response = client.create_stack(**stackArgs)
           waiterId = 'stack_create_complete'
           self.waitCreate(response.get("StackId"))
@@ -239,10 +242,10 @@ class Lifecycle(object):
       os.rmdir(deployDir)
 
 
-  def deleteStack(self):
+  def deleteStack(self, stackConfig):
     heslog.addContext(stage="deleteStack")
     client = boto3.client('cloudformation')
-    stackName = self.config.stackName()
+    stackName = stackConfig.get("name")
     stackId = None
 
     try:
@@ -267,6 +270,11 @@ class Lifecycle(object):
 
   def run(self):
     try:
+      pattern = re.compile("^[a-zA-Z0-9]*$")
+      if not pattern.match(args.stage):
+        heslog.error("For the safety of any templates it is passed to, 'stage' must only contain alpha-numeric characters")
+        raise Abort("Paramter Validation")
+
       if not self.args.noAws and not hesutil.getEnv("AWS_ROLE_ARN"):
         heslog.error("When 'noAws' has not been specified you must assume a role to run this script")
         return
@@ -276,7 +284,8 @@ class Lifecycle(object):
         return
 
       if self.args.delete:
-        self.deleteStack()
+        for stackConfig in self.config.stacks():
+          self.deleteStack(stackConfig)
         return
 
       if self._check("publish and deploy", "envOnly"):
@@ -286,8 +295,13 @@ class Lifecycle(object):
           self.package()
           self.publish()
 
+        print self.config.stacks()
         if self._check("cloudformation", "publishOnly", "envOnly"):
-          self.createOrUpdate()
+          for stackConfig in self.config.stacks():
+            if self.deployFailure:
+              heslog.warn("Breaking due to DeployFailure")
+              break
+            self.createOrUpdate(stackConfig)
 
       self.postDeploy()
     except (Abort, ClientError) as e:
@@ -352,21 +366,19 @@ if __name__ == "__main__":
 
   parser = argparse.ArgumentParser()
   parser.add_argument('--stage', '-s', type=str, required=True,
-    help='The stage to deploy to')
+    help='The stage to deploy to. Must only contain alpha-numeric ascii characters')
   parser.add_argument('--config', '-c', type=str,
-    help='Config file to use as input')
+    help='Config file to use as input (default is config.yml)')
 
   # override defaults
   parser.add_argument('--deployBucket', type=str, default="testlibnd-cf",
-    help='The bucket the artifacts will be put into')
-  parser.add_argument('--stackName', type=str,
-    help='Override the stack name (default is $SERVICE-$STAGE)')
+    help='The bucket the artifacts will be put into (default is testlibnd-cf)')
   parser.add_argument('--deployFolder', type=str,
-    help='Override the deployment folder NO BEGINNING SLASH (default is $SERVICE/$STAGE/$TIMESTAMP')
+    help='Override the deployment folder (default is $SERVICE/$STAGE/$TIMESTAMP)')
 
   # specify functionality
   parser.add_argument('--delete', action='store_true', dest='delete',
-    help="Delete this stack")
+    help="Delete the stack(s)")
 
   parser.add_argument('--publishOnly', action='store_true', dest='publishOnly',
     help="Publish files to the S3 bucket without calling the CF files")
@@ -383,22 +395,23 @@ if __name__ == "__main__":
   # Logging
   parser.add_argument('--verbose', action='store_true', dest='verbose',
     help="Verbose output")
+  parser.add_argument('--debug', action='store_true', dest='debug',
+    help="Debug output")
 
   args = parser.parse_args()
 
-  if args.verbose:
+  if args.debug:
     heslog.setLevels()
+  elif args.verbose:
+    heslog.setLevels(heslog.LEVEL_INFO, heslog.LEVEL_WARN, heslog.LEVEL_ERROR, heslog.LEVEL_VERBOSE)
   else:
     heslog.setLevels(heslog.LEVEL_INFO, heslog.LEVEL_WARN, heslog.LEVEL_ERROR)
-
-  pattern = re.compile("^[a-zA-Z0-9]*$")
-  if not pattern.match(args.stage):
-    heslog.error("For the safety of any templates it is passed to, 'stage' must only contain alpha-numeric characters")
 
   timer = hesutil.Timer(True)
 
   confName = args.config or "config.yml"
   config = deployConfig.Config(confName, args, timestamp)
+
   life = Lifecycle(args, config, timer)
   life.run()
 

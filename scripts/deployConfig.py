@@ -11,89 +11,144 @@ class Config(object):
 
     self.args = args
     self.timestamp = timestamp
+    self.valid = True
 
     with open(filename, "r") as f:
       self.config = yaml.load(f)
 
     self.lambdaEnvs = []
-    self.params = {}
-    self.stackTags = {}
+    self.stackDefs = []
 
     self.replaceRe = re.compile("\${(.*)}")
 
-    if not self._validate():
+    self.deployFolderStr = None
+
+    self._validate()
+    if not self.valid:
       raise Exception("Config validation failed")
 
 
+  def _singleLambdaEnv(self, env):
+    environs = {}
+    for var in env:
+      if "Name" not in var:
+        heslog.error("Trying to set variable for %s with no name" % (lambdaName))
+        self.valid = False
+        continue
+
+      name = self.confSub(var.get("Name"))
+
+      if "Value" not in var:
+        heslog.error("Trying to set %s for %s with no value" % (name, lambdaName))
+        self.valid = False
+        continue
+
+      environs[name] = self.confSub(var.get("Value"))
+    return environs
+
+
   def _validateLambdaEnvs(self):
-    valid = True
-    for lambdaConf in self.config.get("lambdaEnv", []):
-      environs = {}
-      if "name" not in lambdaConf:
+    confSection = self.config.get("LambdaEnv", {})
+    defaultKey = self.confSub(confSection.get("Global", {}).get("KMSKey"))
+
+    globalEnvs = self._singleLambdaEnv(confSection.get("Global", {}).get("Environment", []))
+
+    for lambdaConf in confSection.get("Single", []):
+      if "FunctionName" not in lambdaConf:
         heslog.error("lambda name not specified in lambdaEnv")
-        valid = False
+        self.valid = False
         continue
-      if not lambdaConf.get("env"):
+      if not lambdaConf.get("Environment"):
         heslog.error("Trying to set lambda (%s) environ without specified variables" % lambdaConf.get("name"))
-        valid = False
+        self.valid = False
         continue
 
-      lambdaName = self.confSub(lambdaConf.get("name"))
-      key = self.confSub(lambdaConf.get("key", None))
+      lambdaName = self.confSub(lambdaConf.get("FunctionName"))
+      key = self.confSub(lambdaConf.get("KMSKey"))
 
-      for var in lambdaConf.get("env", []):
-        if "name" not in var:
-          heslog.error("Trying to set variable for %s with no name" % (lambdaName))
-          valid = False
-          continue
+      environs = self._singleLambdaEnv(lambdaConf.get("Environment", []))
 
-        name = self.confSub(var.get("name"))
-
-        if "value" not in var:
-          heslog.error("Trying to set %s for %s with no value" % (name, lambdaName))
-          valid = False
-          continue
-
-        environs[name] = self.confSub(var.get("value"))
-
+      finalVars = {}
+      finalVars.update(globalEnvs)
+      finalVars.update(environs)
       self.lambdaEnvs.append({
         "name": lambdaName,
-        "key": key,
-        "vars": environs,
+        "key": key or defaultKey,
+        "vars": finalVars,
       })
 
-    heslog.verbose("Lambda environments: %s" % self.lambdaEnvs)
-    return valid
+    heslog.debug("Lambda environments: %s" % self.lambdaEnvs)
+
+
+  def _validateStacks(self):
+    configStacks = self.config.get("Stacks", {})
+    globalTags = { k: self.confSub(v) for k,v in configStacks.get("Global", {}).get("Tags", {}).iteritems() }
+    globalParams = { k: self.confSub(v) for k,v in configStacks.get("Global", {}).get("Parameters", {}).iteritems() }
+
+    for stack in configStacks.get("Single", []):
+      template = stack.get("Template")
+
+      # either specify a template in the config or dont publish (use template on s3)
+      if not template or (not self.args.noPublish and template not in self.artifactTemplates()):
+        heslog.error("Template %s must be present in the Artifacts.Templates section of the config" % template)
+        self.valid = False
+
+      stackName = self.confSub(stack.get("Name"))
+      if not stackName:
+        heslog.error("Stack requires a Name")
+        self.valid = False
+
+      localTags = { k: self.confSub(v) for k,v in stack.get("Tags", {}).iteritems() }
+      localParams = { k: self.confSub(v) for k,v in stack.get("Parameters", {}).iteritems() }
+
+      finalTags = {}
+      finalTags.update(globalTags)
+      finalTags.update(localTags)
+
+      finalParams = {}
+      finalParams.update(globalParams)
+      finalParams.update(localParams)
+
+      self.stackDefs.append({
+        "name": stackName,
+        "template": template,
+        "tags": finalTags,
+        "params": finalParams,
+      })
+    heslog.debug("Stacks: %s" % self.stackDefs)
+
+
+  def _validateArtifacts(self):
+    artifacts = self.config.get("Artifacts", {})
+    templates = artifacts.get("Templates")
+
+    if not templates:
+      heslog.error("Config requires templates")
 
 
   def _validate(self):
-    valid = True
-    if "service" not in self.config:
+    if "Service" not in self.config:
       heslog.error("Config requires a 'service' field with the service name")
-      valid = False
+      self.valid = False
 
-    if len(self.cloudformations()) <= 0:
-      heslog.error("'cloudformations' must specify at least one template file")
-      valid = False
+    self.deployFolderStr = self.args.deployFolder or "$SERVICE/$STAGE/$TIMESTAMP"
+    if "$DEPLOY_FOLDER" in self.deployFolderStr:
+      heslog.error("Cannot use $DEPLOY_FOLDER in the deployFolder param")
+      self.valid = False
+    self.deployFolderStr = self.confSub(self.deployFolderStr).strip('/')
 
-    call = self.config.get("call", "root.yml")
-    if type(call) is not str or call not in self.cloudformations():
-      heslog.error("'call' must specify exactly one item in the 'cloudformations' list (default: root.yml)")
-      valid = False
+    self._validateArtifacts()
+    self._validateStacks()
 
-    for k,v in self.config.get("parameters", {}).iteritems():
-      self.params[k] = self.confSub(v)
-
-    for k,v in self.config.get("tags", {}).iteritems():
-      self.stackTags[k] = self.confSub(v)
-
-    if not self._validateLambdaEnvs():
-      valid = False
-
-    return valid
+    # we wont use any of this during deletion, so don't require it
+    if not self.args.delete:
+      self._validateLambdaEnvs()
 
 
   def confSub(self, orig):
+    if not orig:
+      return orig
+
     ret = orig.replace("$SERVICE", self.serviceName())
     ret = ret.replace("$STAGE", self.args.stage)
     ret = ret.replace("$DEPLOY_BUCKET", self.args.deployBucket)
@@ -105,45 +160,30 @@ class Config(object):
     return ret
 
 
-  def stackName(self):
-    if self.args.stackName:
-      return self.args.stackName
+  def setTemplateCapabilities(self, template, capabilities):
+    for s in self.stackDefs:
+      if s.get("template") == template:
+        s["capabilities"] = capabilities
 
-    return "%s-%s" % (self.serviceName(), self.args.stage)
+
+  def artifactTemplates(self):
+    return self.config.get("Artifacts", {}).get("Templates", [])
+
+
+  def artifactZips(self):
+    return self.config.get("Artifacts", {}).get("Zips", [])
+
+
+  def stacks(self):
+    return self.stackDefs
 
 
   def deployFolder(self):
-    if self.args.deployFolder:
-      return self.args.deployFolder
-    return "%s/%s/%s" % (self.serviceName(), self.args.stage, self.timestamp)
+    return self.deployFolderStr
 
 
   def serviceName(self):
-    return self.config.get("service")
-
-
-  def parameters(self):
-    return self.params
-
-
-  def cfcall(self):
-    cfs = self.config.get("call", "root.yml")
-    return cfs
-
-
-  def cloudformations(self):
-    cfs = self.config.get("cloudformations")
-    if type(cfs) is not list:
-      cfs = [cfs]
-    return cfs
-
-
-  def tags(self):
-    return self.stackTags
-
-
-  def zips(self):
-    return self.config.get("codeZips", {})
+    return self.config.get("Service")
 
 
   def lambdaVars(self):

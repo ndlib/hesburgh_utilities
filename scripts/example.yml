@@ -1,0 +1,59 @@
+Service: servicename
+
+Stacks:
+  Global:
+    Tags:
+      Name: $SERVICE-$STAGE
+      Owner: ${USER}
+      Contact: ${USER}@nd.edu
+      Description: will be overwritten
+    Parameters:
+      GlobalParam: usedInEveryStack
+      Stage: will be overwritten
+  Single:
+    - Name: $SERVICE-$STAGE
+      Template: root.yml
+      Tags:
+        Description: Root Stack
+      Parameters:
+        ServiceName: $SERVICE-$STAGE
+        Stage: $STAGE
+        TemplateBucket: $DEPLOY_BUCKET
+        TemplateFolder: $DEPLOY_FOLDER
+
+    - Name: $SERVICE-$STAGE-lambdas
+      Template: lambdas.yml
+
+Artifacts:
+  Templates:
+    - root.yml
+    - kms.yml
+    - lambdas.yml
+  Zips:
+    -
+      Name: code
+      Files:
+        - ../hesburgh
+        - ../lambdaRequests
+        - ../serviceRequests
+        - ../testdata
+        - ../alephQuery.py
+        - ../joinHandler.py
+        - ../serviceHandler.py
+
+LambdaEnv:
+  Global:
+    KMSKey: alias/$SERVICE-$STAGE
+    Environment:
+      - Name: ENV_VAR
+        Value: will be overwritten
+  Single:
+    - FunctionName: $SERVICE-$STAGE-function
+      KMSKey: overwrite global key
+      Environment:
+        -
+          Name: ENV_VAR
+          Value: ${ENV_VAR}
+        -
+          Name: SECOND_VAR
+          Value: ${SECOND_VAR}
