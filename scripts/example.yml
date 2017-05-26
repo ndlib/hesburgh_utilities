@@ -1,6 +1,8 @@
 Service: servicename
 
 Stacks:
+  # Global variables used in every stack (Optional)
+  #  Anything specified here will be overwritten if something by the same name is specified in a stack
   Global:
     Tags:
       Name: $SERVICE-$STAGE
@@ -10,6 +12,7 @@ Stacks:
     Parameters:
       GlobalParam: usedInEveryStack
       Stage: will be overwritten
+  # Individual stack specifications (At least one is required)
   Single:
     - Name: $SERVICE-$STAGE
       Template: root.yml
@@ -42,6 +45,7 @@ Artifacts:
         - ../serviceHandler.py
 
 LambdaEnv:
+  # Similar to Stack.Global, optional variables for every function
   Global:
     KMSKey: alias/$SERVICE-$STAGE
     Environment:
@@ -49,6 +53,7 @@ LambdaEnv:
         Value: will be overwritten
   Single:
     - FunctionName: $SERVICE-$STAGE-function
+      # KMSKey is optional, if not specified here or in the global scope values will be put in cleartext
       KMSKey: overwrite global key
       Environment:
         -

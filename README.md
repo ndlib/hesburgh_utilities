@@ -1,5 +1,7 @@
 # hesburgh_utilities
 
+#### [hesdeploy documentation](scripts/HESDEPLOY.md)
+
 This project contains shared utilities to be used across all projects in multiple languages - currently Javascript and Python.
 
 #### NOTE: Unless otherwise stated all utilities are avaialable in all supported languages, even if they don't have usage examples in that language.
