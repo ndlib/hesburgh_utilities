@@ -105,7 +105,7 @@ class Lifecycle(object):
       response = client.get_function_configuration(FunctionName=func)
       currentEnv = response.get("Environment", {}).get("Variables", {})
       currentEnv.update(env)
-      print currentEnv
+      heslog.debug(currentEnv)
 
       response = client.update_function_configuration(
         FunctionName=func,
@@ -295,7 +295,7 @@ class Lifecycle(object):
           self.package()
           self.publish()
 
-        print self.config.stacks()
+        heslog.debug(self.config.stacks())
         if self._check("cloudformation", "publishOnly", "envOnly"):
           for stackConfig in self.config.stacks():
             if self.deployFailure:
