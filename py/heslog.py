@@ -159,7 +159,7 @@ def warn(message, **kwargs):
 
 
 def error(message, **kwargs):
-  kwargs["_code_origin"] = _origin()
+  # kwargs["_code_origin"] = _origin()
   Logger().log(LEVEL_ERROR, message, **kwargs)
 
 

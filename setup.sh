@@ -1,5 +1,11 @@
+pip install pyyaml
+
 wd="$(pwd)"
-ln -s $wd/py "/usr/local/lib/python2.7/site-packages/hesburgh"
+
+pythonFolder="/usr/local/lib/python2.7/site-packages/hesburgh"
+if [[ ! -d "$pythonFolder" ]]; then
+  ln -s "$wd/py" $pythonFolder
+fi
 
 cd js
 yarn link
