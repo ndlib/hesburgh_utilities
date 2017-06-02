@@ -25,7 +25,11 @@ Artifacts:
   Templates:
     - root.yml
 ```
-Any variables like `${NAME}` is assumed to be an environment variable and if it's not found hesdeploy will fail
+The `Stacks.Single` section is, perhaps badly named, a list of (possibly one) stack(s) to create. This is where the stack name and template to use are defined, as well as any specific stack parameters or tags. Any Parameters or tags to be used on all stacks should be located under the optional `Stacks.Global` section.
+
+The `Artifacts.Templates` section defines the cloudformation template files to be validated and published to S3. The `Template` parameter under each stack in `Stacks.Single` must be a filename present in this list (unless `--noPublish` is specified, as in that case we assume the template file is already valid and in the specified S3 deployBucket). This section does NOT define stacks to be created, only cloudformations to validate and publish.
+
+Any variables like `${FOO}` is assumed to be an environment variable and if it's not found hesdeploy will fail
 
 There are variables accessable in the config that are generated from the deployments script. These are denoted with a preceding $ without the {} braces.
 
