@@ -155,6 +155,10 @@ class Lifecycle(object):
         client = boto3.client('s3')
         heslog.info("Publishing to s3://%s/%s" % (self.args.deployBucket, self.config.deployFolder()))
 
+        heslog.info("Uploading config file")
+        heslog.verbose("Upload %s => s3://%s/%s/%s" % (self.config.filename, self.args.deployBucket, self.config.deployFolder(), self.config.filename))
+        client.upload_file(self.config.filename, self.args.deployBucket, '%s/%s' % (self.config.deployFolder(), self.config.filename))
+
         heslog.info("Uploading artifact templates")
         for file in self.config.artifactTemplates():
           heslog.verbose("Upload %s => s3://%s/%s/%s" % (file, self.args.deployBucket, self.config.deployFolder(), file))

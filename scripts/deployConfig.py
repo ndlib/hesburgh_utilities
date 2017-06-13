@@ -13,6 +13,8 @@ class Config(object):
     self.timestamp = timestamp
     self.valid = True
 
+    self.filename = filename
+
     with open(filename, "r") as f:
       self.config = yaml.load(f)
 
@@ -139,10 +141,7 @@ class Config(object):
 
     self._validateArtifacts()
     self._validateStacks()
-
-    # we wont use any of this during deletion, so don't require it
-    if not self.args.delete:
-      self._validateLambdaEnvs()
+    self._validateLambdaEnvs()
 
 
   def confSub(self, orig):
@@ -155,8 +154,10 @@ class Config(object):
     ret = ret.replace("$DEPLOY_FOLDER", self.deployFolder())
     ret = ret.replace("$TIMESTAMP", self.timestamp)
 
-    for envVal in self.replaceRe.findall(ret):
-      ret = ret.replace("${%s}" % envVal, hesutil.getEnv(envVal, throw=True))
+    # we wont use any of this during deletion or publish, so don't require it
+    if not self.args.delete and not self.args.publishOnly:
+      for envVal in self.replaceRe.findall(ret):
+        ret = ret.replace("${%s}" % envVal, hesutil.getEnv(envVal, throw=True))
     return ret
 
 
