@@ -1,4 +1,4 @@
-pip install pyyaml
+pip install boto3 pyyaml
 
 wd="$(pwd)"
 
