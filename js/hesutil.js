@@ -95,18 +95,33 @@ try {
 // This allowes decrypted values to only be decrypted once per lambda container
 var decrypted = {};
 
+function isDict(obj) {
+  return typeof obj === "object"
+      && obj !== null
+      && obj !== undefined
+      && !Array.isArray(obj)
+}
+
 function dictHas(dict, key) {
-  if(dict == null) {
+  if(!isDict(dict)) {
     return false;
   }
   return dict.hasOwnProperty(key);
 }
 
 function dictGet(dict, key, defaultVal) {
+  var ret = defaultVal
   if(dictHas(dict, key)) {
-    return dict[key];
+    ret = dict[key];
   }
-  return defaultVal;
+
+  if(isDict(ret)) {
+    if(ret.hasOwnProperty("safeGet")) {
+      console.log("WARNING: overwriting property 'safeGet' on dict")
+    }
+    ret["safeGet"] = dictGet.bind(null, ret)
+  }
+  return ret;
 }
 
 function getEnvEncrypted(key, callback, defaultVal, shouldThrow) {

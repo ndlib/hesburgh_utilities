@@ -4,6 +4,12 @@ const heslog = require('../heslog');
 const hesutil = require('../hesutil');
 const hestest = require('../hestest');
 
+var foo = { foo: {bar: "baz"}}
+hesutil.dictGet(foo, "foo").safeGet("bar")
+heslog.debug(hesutil.dictGet(foo, "foo").safeGet("bar"))
+foo = {}
+heslog.debug(hesutil.dictGet(foo, "foo", {}).safeGet("bar", "bul"))
+
 hestest.init("../", "testdata")
 console.log(hestest.get("hbeachey"));
 
