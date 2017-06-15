@@ -16,7 +16,7 @@ import deployConfig
 from datetime import datetime
 from hesburgh import heslog, hesutil
 
-timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+timestamp = datetime.utcnow().strftime("%Y-%m-%d-%H-%M-%S")
 deployDir = "deploy_%s" % timestamp
 
 ########### WALK
@@ -154,6 +154,10 @@ class Lifecycle(object):
       if self._check("publishing files", "noAws"):
         client = boto3.client('s3')
         heslog.info("Publishing to s3://%s/%s" % (self.args.deployBucket, self.config.deployFolder()))
+
+        heslog.info("Uploading config file")
+        heslog.verbose("Upload %s => s3://%s/%s/%s" % (self.config.filename, self.args.deployBucket, self.config.deployFolder(), self.config.filename))
+        client.upload_file(self.config.filename, self.args.deployBucket, '%s/%s' % (self.config.deployFolder(), self.config.filename))
 
         heslog.info("Uploading artifact templates")
         for file in self.config.artifactTemplates():
@@ -307,6 +311,7 @@ class Lifecycle(object):
     except (Abort, ClientError) as e:
       heslog.setContext({})
       heslog.info("Aborting due to %s" % e)
+      sys.exit(1)
     heslog.setContext({})
 
   ############ CF WAIT
@@ -416,4 +421,7 @@ if __name__ == "__main__":
   life.run()
 
   heslog.info("Total Time: %s" % timer.end())
+
+  if life.deployFailure:
+    sys.exit(1)
 
