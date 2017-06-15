@@ -1,4 +1,5 @@
 'use strict'
+const async = require('async')
 
 const onAWS = dictHas(process.env, "AWS_LAMBDA_FUNCTION_VERSION");
 
@@ -124,6 +125,28 @@ function dictGet(dict, key, defaultVal) {
   return ret;
 }
 
+function getEnvsEncrypted(keys, callback, defaultVal, shouldThrow) {
+  let results = []
+  async.each(keys,
+    function (item, next) {
+      getEnvEncrypted(item, function (decryptErr, decryptedVal) {
+        if (decryptErr) {
+          return next(new Error(decryptErr))
+        }
+        results[item] = decryptedVal
+        return next(null)
+      })
+    },
+    function (err) {
+      if (err) {
+        return callback(new Error(err))
+      }
+      // All decrypted successfully
+      callback(null, results)
+    }
+  )
+}
+
 function getEnvEncrypted(key, callback, defaultVal, shouldThrow) {
   // handle default and throw and also get actual key
   if(!dictHas(process.env, key) && shouldThrow) {
@@ -157,6 +180,7 @@ module.exports = {
   dictGet: dictGet,
   getEnv: getEnv,
   getEnvEncrypted: getEnvEncrypted,
+  getEnvsEncrypted: getEnvsEncrypted,
   onAWS: onAWS,
   Timer: Timer,
 };

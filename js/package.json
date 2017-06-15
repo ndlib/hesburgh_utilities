@@ -4,5 +4,7 @@
   "version": "0.0.1",
   "license": "",
   "main": "index.js",
-  "dependencies": {}
+  "dependencies": {
+    "async": "^2.4.1"
+  }
 }
