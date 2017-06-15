@@ -60,7 +60,7 @@ class Config(object):
         heslog.error("lambda name not specified in lambdaEnv")
         self.valid = False
         continue
-      if not lambdaConf.get("Environment"):
+      if not lambdaConf.get("Environment") and not globalEnvs:
         heslog.error("Trying to set lambda (%s) environ without specified variables" % lambdaConf.get("name"))
         self.valid = False
         continue
