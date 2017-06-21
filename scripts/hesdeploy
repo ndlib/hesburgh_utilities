@@ -117,6 +117,39 @@ class Lifecycle(object):
       heslog.error(e)
 
 
+  def _deployGateway(self, gatewayInfo):
+    gateway = gatewayInfo.get("name")
+    stackName = gatewayInfo.get("stack")
+    heslog.info("Deploying Gateway from Stack: %s Name: %s" % (stackName, gateway))
+
+    try:
+      client = boto3.client("cloudformation")
+      response = client.describe_stacks(
+        StackName=stackName
+      )
+
+      outputs = response.get("Stacks")[0].get("Outputs", {})
+      for i in outputs:
+        if i.get("OutputKey", "") == gateway:
+          apiId = i.get("OutputValue")
+          break
+
+      if not apiId:
+        heslog.error("Gateway %s could not be found in outputs of %s" (gateway, stackName))
+        return
+
+      description = "Hesdeploy %s" % (self.config.deployFolder() if not self.args.envOnly else "envOnly")
+
+      client = boto3.client("apigateway")
+      client.create_deployment(
+        restApiId=apiId,
+        stageName=self.args.stage,
+        description=description
+      )
+    except Exception as e:
+      heslog.error(e)
+
+
   def preDeploy(self):
     heslog.addContext(stage="preDeploy")
 
@@ -229,12 +262,19 @@ class Lifecycle(object):
   def postDeploy(self):
     heslog.addContext(stage="postDeploy")
 
-    if (self._check("lambda update" , "noAws", "publishOnly")
+    if (self._check("lambda update", "noAws", "publishOnly")
         and len(self.config.lambdaVars()) > 0
         and not self.deployFailure):
       for lambdaConf in self.config.lambdaVars():
         self._updateLambda(lambdaConf.get("name"), lambdaConf.get("vars", {}), lambdaConf.get("key"))
       heslog.info("Finished Updating Lambdas in %ss" % (self.timer.step(True)))
+
+    if (self._check("api deploy", "noAws", "publishOnly")
+        and not self.deployFailure
+        and len(self.config.gateways) > 0):
+      for gatewayInfo in self.config.gateways:
+        self._deployGateway(gatewayInfo)
+      heslog.info("Finshed Deploying Gateways in %ss" % (self.timer.step(True)))
 
     # remove temp directory
     if self._check("delete local artifacts", "keepLocal") and os.path.exists(deployDir):

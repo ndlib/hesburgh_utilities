@@ -23,6 +23,8 @@ Stacks:
         Stage: $STAGE
         TemplateBucket: $DEPLOY_BUCKET
         TemplateFolder: $DEPLOY_FOLDER
+      Gateways:
+        - GatewayIdInOutputsOfStack
 
     - Name: $SERVICE-$STAGE-lambdas
       Template: lambdas.yml

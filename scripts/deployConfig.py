@@ -20,9 +20,9 @@ class Config(object):
 
     self.lambdaEnvs = []
     self.stackDefs = []
+    self.gateways = []
 
     self.replaceRe = re.compile("\${(.*)}")
-
     self.deployFolderStr = None
 
     self._validate()
@@ -99,6 +99,9 @@ class Config(object):
       if not stackName:
         heslog.error("Stack requires a Name")
         self.valid = False
+
+      for gateway in stack.get("Gateways", []):
+        self.gateways.append({ "name": gateway, "stack": stackName })
 
       localTags = { k: self.confSub(v) for k,v in stack.get("Tags", {}).iteritems() }
       localParams = { k: self.confSub(v) for k,v in stack.get("Parameters", {}).iteritems() }
