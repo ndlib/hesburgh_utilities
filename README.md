@@ -7,11 +7,11 @@ This project contains shared utilities to be used across all projects in multipl
 #### NOTE: Unless otherwise stated all utilities are avaialable in all supported languages, even if they don't have usage examples in that language.
 #### NOTE: On AWS heslog defaults to only logging INFO, WARN, and ERROR levels while locally all default to being on. To override in either environment set the env var HESBURGH_DEBUG=[true|false] to the appropriate value for what you want.
 
-## Instilation
+## Installation
 To install projects locally run ./setup.sh in the home directory. This will install the python module and link the javascript module to your global namespace.
 
 ### JS
-To install in a javascript project run `npm link hesburgh_util` in said project. This will link the globaly installed project to your local project. All `link` commands are creating symlinks so future development on the javascript project will automatically update any projects containting this one.
+To install in a javascript project run `yarn link hesburgh_util` in said project. This will link the globaly installed project to your local project. All `link` commands are creating symlinks so future development on the javascript project will automatically update any projects containting this one.
 
 ### PY
 To install the python library to another project, you must run `ln -s "/usr/local/lib/python2.7/site-packages/hesburgh"` in that project directory. This is only needed if your project is going to be packaged for lambda, as it must exist in the directory to be zipped up. Please also add "hesburgh/" to your .gitignore file after doing this.
