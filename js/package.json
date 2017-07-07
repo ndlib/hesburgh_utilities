@@ -5,6 +5,6 @@
   "license": "",
   "main": "index.js",
   "dependencies": {
-    "async": "^2.4.1"
+    "async": "^2.5.0"
   }
 }
