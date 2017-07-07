@@ -8,7 +8,7 @@ This project contains shared utilities to be used across all projects in multipl
 #### NOTE: On AWS heslog defaults to only logging INFO, WARN, and ERROR levels while locally all default to being on. To override in either environment set the env var HESBURGH_DEBUG=[true|false] to the appropriate value for what you want.
 
 ## Installation
-To install projects locally run ./setup.sh in the home directory. This will install the python module and link the javascript module to your global namespace.
+This project requires yarn, so first run `npm install -g yarn`. To install projects locally run ./setup.sh in the home directory. This will install the python module and link the javascript module to your global namespace.
 
 ### JS
 To install in a javascript project run `yarn link hesburgh_util` in said project. This will link the globaly installed project to your local project. All `link` commands are creating symlinks so future development on the javascript project will automatically update any projects containting this one.
