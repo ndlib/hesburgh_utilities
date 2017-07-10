@@ -1,7 +1,7 @@
 {
   "name": "hesburgh_util",
   "description": "Hesburgh Javascript Utilities",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "license": "Apache 2.0",
   "main": "index.js",
   "author": "Harrison Beachey <hbeachey@nd.edu>",
@@ -15,7 +15,7 @@
   },
   "scripts": {
     "test": "node test/test.js",
-    "prepack": "rm testdata && cp -r ../testdata . && cp ../README.md .",
-    "postpack": "rm -r testdata && ln -s ../testdata && rm README.md"
+    "prepack": "rm testdata && cp -r ../testdata .",
+    "postpack": "rm -r testdata && ln -s ../testdata"
   }
 }
