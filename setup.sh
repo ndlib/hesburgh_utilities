@@ -1,12 +1,8 @@
-pip install boto3 pyyaml
+pip install boto3 pyyaml setuptools
 
-wd="$(pwd)"
-
-pythonFolder=`python -c "from distutils.sysconfig import get_python_lib; print
-get_python_lib()"`
-if [[ ! -d "$pythonFolder" ]]; then
-  ln -s "$wd/py" $pythonFolder
-fi
+cd py
+pip install -e .
+cd ..
 
 cd js
 yarn link
