@@ -121,6 +121,7 @@ function dictGet(dict, key, defaultVal) {
       console.log("WARNING: overwriting property 'safeGet' on dict")
     }
     ret["safeGet"] = dictGet.bind(null, ret)
+    Object.defineProperty(ret, "safeGet", { enumerable: false })
   }
   return ret;
 }
