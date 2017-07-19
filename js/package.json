@@ -10,7 +10,9 @@
     "url": "git+https://github.com/ndlib/hesburgh_utilities.git"
   },
   "dependencies": {
-    "async": "^2.5.0",
+    "async": "^2.5.0"
+  },
+  "devDependencies": {
     "aws-sdk": "^2.82.0"
   },
   "scripts": {
