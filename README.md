@@ -11,10 +11,10 @@ This project contains shared utilities to be used across all projects in multipl
 This project requires yarn, so first run `npm install -g yarn`. To install projects locally run ./setup.sh in the home directory. This will install the python module and link the javascript module to your global namespace.
 
 ### JS
-To install in a javascript project run `yarn link hesburgh_util` in said project. This will link the globaly installed project to your local project. All `link` commands are creating symlinks so future development on the javascript project will automatically update any projects containting this one.
+To install in a javascript project run `yarn add hesburgh_util` in said project.
 
 ### PY
-To install the python library to another project, you must run `ln -s "/usr/local/lib/python2.7/site-packages/hesburgh"` in that project directory. This is only needed if your project is going to be packaged for lambda, as it must exist in the directory to be zipped up. Please also add "hesburgh/" to your .gitignore file after doing this.
+To install the python library to another project, run `pip install hesburgh-utilities --target hesburgh` This will pip install to the target directory (hesburgh) so that all it may be packaged with the rest of the code.
 
 ## Utilities:
 ### Logger (heslog)

@@ -7,6 +7,11 @@ const hestest = require('../hestest');
 var foo = { foo: {bar: "baz"}}
 hesutil.dictGet(foo, "foo").safeGet("bar")
 heslog.debug(hesutil.dictGet(foo, "foo").safeGet("bar"))
+
+for (var k in hesutil.dictGet(foo, "bar")) {
+  heslog.debug(k)
+}
+
 foo = {}
 heslog.debug(hesutil.dictGet(foo, "foo", {}).safeGet("bar", "bul"))
 
