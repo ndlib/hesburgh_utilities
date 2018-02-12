@@ -69,7 +69,7 @@ Note: date/time will not be printed on AWS as they already add that to logs. It 
 
 
 #### Usage in Python
-```
+```python
 import heslog
 
 heslog.setContext({"foo": "bar"})
@@ -86,7 +86,7 @@ heslog.setLevels(heslog.LEVEL_WARN, heslog.LEVEL_INFO)
 # now only warn and info will output
 ```
 #### Usage in JS
-```
+```javascript
 const hesburgh = require("hesburgh_util");
 const heslog = hesburgh.heslog;
 
@@ -119,7 +119,7 @@ heslog.setLevels(heslog.levels.debug, heslog.levels.error);
 |          | defaultVal | String: default value to return if key doesn't exist
 
 #### JS
-```
+```javascript
 const hesburgh = require("hesburgh_util");
 const hesutil = hesburgh.hesutil;
 
@@ -161,13 +161,13 @@ For the most part, this is just a generic json file, it will be what's returned 
 }
 ```
 An example of what the return will be with the above data:
-```
+```python
 foo = hestest.get("test_netid")
 # foo = { "key": "value", "foo": { "barkey": "barvalue" } }
 ```
 The `load_file` key can be used at any level, the entire tree will be traversed to load all files. So in the example `bar.json` could also contain a `load_file` to load another file.
 #### Python
-```
+```python
 from hesburgh import hestest
 
 # __file__ is required as the first param in python, it denotes the location of the calling file
@@ -176,7 +176,7 @@ hestest.init(__file__, "../testdata")
 hestest.get("hbeachey")
 ```
 #### JS
-```
+```javascript
 const hesburgh = require("hesburgh_util");
 const hestest = hesburgh.hestest;
 
@@ -198,7 +198,7 @@ hestest.get("hbeachey")
 | end      |            | Stop the timer/Get the total time
 
 #### Python
-```
+```python
 from hesburgh import hesutil
 
 timer = hesutil.Timer()
