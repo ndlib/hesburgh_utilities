@@ -1,31 +1,31 @@
-from hesburgh import scriptText
+from hesburgh import scriptutil
 
 text = ""
-for bg in scriptText.BG_COLORS:
-  text += scriptText.format("bg", bg)
+for bg in scriptutil.BG_COLORS:
+  text += scriptutil.format("bg", bg)
 
 print text
 text = ""
 
-for fg in scriptText.FG_COLORS:
-  text += scriptText.format("fg", fg)
+for fg in scriptutil.FG_COLORS:
+  text += scriptutil.format("fg", fg)
 
 print text
 text = ""
 
-for extra in scriptText.EXTRA_FORMATS:
-  text += scriptText.format("extra", extra)
+for extra in scriptutil.EXTRA_FORMATS:
+  text += scriptutil.format("extra", extra)
 
 print text
 text = ""
 
-for fg in scriptText.FG_COLORS:
-  for bg in scriptText.BG_COLORS:
-    text += scriptText.format("fgbg", fg, bg)
-    for extra in scriptText.EXTRA_FORMATS:
-      text += scriptText.format("all", fg, bg, extra)
+for fg in scriptutil.FG_COLORS:
+  for bg in scriptutil.BG_COLORS:
+    text += scriptutil.format("fgbg", fg, bg)
+    for extra in scriptutil.EXTRA_FORMATS:
+      text += scriptutil.format("all", fg, bg, extra)
   print text
   text = ""
 
-print scriptText.success("win!")
-print scriptText.error("lose!")
+print scriptutil.success("win!")
+print scriptutil.error("lose!")
