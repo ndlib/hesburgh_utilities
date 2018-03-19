@@ -88,11 +88,13 @@ EXTRA_FORMATS = [
 
 ALL_FORMATS = FG_COLORS + BG_COLORS + EXTRA_FORMATS
 
+
 def _prefix():
   return "\x1B["
 
 # tput colors
 _term_colors = not hesutil.onAWS
+# This method wraps the requested terminal color codes around the given message
 def format(text, *args):
   if not _term_colors:
     return text
@@ -114,4 +116,52 @@ def success(text):
 
 def error(text):
   return format(text, FG_RED)
+
+
+def userInput(message):
+  return raw_input("\n%s\n>> " % message)
+
+
+# returns false if message doesn't uniquely denote an item in the options list
+# eg 'y' uniquely denotes 'yes' in the options ['yes', 'no'] but nothing in ['young', 'yellow']
+def isValidInput(message, options):
+  validOptions = options
+  # iterate through each letter
+  for index in xrange(len(message)):
+    if len(validOptions) == 0:
+      return False
+
+    letter = message[index]
+
+    tmpOptions = []
+    # check this letter index in every valid option, remove those that don't match from valid options
+    for option in validOptions:
+      if len(option) > index and option[index] == letter:
+        tmpOptions.append(option)
+    validOptions = tmpOptions
+
+  if len(validOptions) != 1:
+    return False
+
+  return validOptions[0]
+
+
+def getValidInput(message, options):
+  valid = False
+  while not valid:
+    data = userInput(message)
+    valid = isValidInput(data, options)
+
+  return valid
+
+
+def isTruthy(text):
+  text = text.lower()
+  return isValidInput(text, ["yes"])
+
+# this method exists so we can conditionally change where we write to in the future
+#  for instance, an interactive terminal instead of just a normal stdout
+def write(msg):
+  # if not hesutil.onAWS:
+  print msg
 

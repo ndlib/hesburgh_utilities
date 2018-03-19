@@ -2,6 +2,7 @@ from datetime import datetime
 import inspect
 
 import hesutil
+import scriptutil
 
 LEVEL_DEBUG   = 0
 LEVEL_VERBOSE = 3
@@ -15,8 +16,8 @@ LEVELS = {
   LEVEL_VERBOSE: "VERBOSE",
   LEVEL_TEST: "TEST",
   LEVEL_INFO: "INFO",
-  LEVEL_WARN: "WARN",
-  LEVEL_ERROR: "ERROR",
+  LEVEL_WARN: scriptutil.format("WARN", scriptutil.FG_LIGHT_YELLOW),
+  LEVEL_ERROR: scriptutil.format("ERROR", scriptutil.FG_RED),
 }
 
 # grock
@@ -43,7 +44,7 @@ class Logger(object):
 
 
     def _log(self, message):
-      print message
+      scriptutil.write(message)
 
 
     def _getPrefix(self, level):
@@ -57,13 +58,14 @@ class Logger(object):
     def _format(self, message, **kwargs):
       coreCopy = self.coreContext.copy()
       coreCopy.update(kwargs)
+      out = u""
       if coreCopy:
-        out = u""
         for k,v in coreCopy.iteritems():
           out += u"%s=%s | " % (k,v)
+      if hesutil.onAWS:
         out += u"message=%s" % (message)
       else:
-        out = u"message=%s" % message
+        out += u"%s" % (message)
       return out
 
 

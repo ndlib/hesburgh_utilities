@@ -3,6 +3,7 @@
 const heslog = require('../heslog');
 const hesutil = require('../hesutil');
 const hestest = require('../hestest');
+const script = require('../scriptutil')
 
 var foo = { foo: {bar: "baz"}}
 hesutil.dictGet(foo, "foo").safeGet("bar")
