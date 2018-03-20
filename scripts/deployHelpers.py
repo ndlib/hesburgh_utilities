@@ -1,5 +1,6 @@
 import zipfile
 import os
+import imp
 
 from hesburgh import heslog
 
@@ -37,3 +38,9 @@ def makeZip(zipName, paths):
   for path in paths:
     zipDir(zipf, path)
   zipf.close()
+
+
+# pre/post scripts - imports source file and runs the "run" function within
+def runScript(scriptFile, **kwargs):
+  mod = imp.load_source('tmp', scriptFile)
+  return mod.run(**kwargs)

@@ -21,6 +21,20 @@ class Config(object):
     with open(filename, "r") as f:
       self.config = yaml.load(f)
 
+    self.preScript = self.config.get("PreDeploy")
+    if self.preScript:
+      if not os.path.exists(self.preScript):
+        heslog.error("Pre script %s doesn't exist" % self.preScript)
+        raise Abort("Invalid config")
+      self.preScript = os.path.abspath(self.preScript)
+
+    self.postScript = self.config.get("PostDeploy")
+    if self.postScript:
+      if not os.path.exists(self.postScript):
+        heslog.error("Post script %s doesn't exist" % self.postScript)
+        raise Abort("Invalid config")
+      self.postScript = os.path.abspath(self.postScript)
+
     self.lambdaEnvs = []
     self.stackDefs = []
     self.gateways = []

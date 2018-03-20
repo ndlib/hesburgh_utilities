@@ -1,4 +1,5 @@
 import hesutil
+import subprocess
 
 FG_DEFAULT = 39
 FG_BLACK = 30
@@ -122,6 +123,10 @@ def userInput(message):
   return raw_input("\n%s\n>> " % message)
 
 
+def userConfirm(message):
+  return isTruthy(userInput(message))
+
+
 # returns false if message doesn't uniquely denote an item in the options list
 # eg 'y' uniquely denotes 'yes' in the options ['yes', 'no'] but nothing in ['young', 'yellow']
 def isValidInput(message, options):
@@ -153,6 +158,21 @@ def getValidInput(message, options):
     valid = isValidInput(data, options)
 
   return valid
+
+
+# run a console command - eg "yarn test"
+def executeCommand(cmd):
+  try:
+    output = subprocess.check_output(cmd, shell=True)
+    return {
+      "output": output,
+      "code": 0,
+    }
+  except subprocess.CalledProcessError as e:
+    return {
+      "output": e.output,
+      "code": e.returncode,
+    }
 
 
 def isTruthy(text):
