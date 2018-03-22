@@ -233,6 +233,7 @@ def main():
   args = parser.parse_args()
 
   # connect to aws ssm
+  global client
   client = setupClient(args)
   args.func(args)
 
