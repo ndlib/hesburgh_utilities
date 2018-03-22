@@ -1,6 +1,7 @@
 'use strict'
 
 const util = require('./hesutil');
+const scriptutil = require('./scriptutil');
 
 const HESLOG_KEY = "library.nd.edu.logger";
 
@@ -16,8 +17,8 @@ LEVELS[LEVEL_DEBUG] = "DEBUG";
 LEVELS[LEVEL_VERBOSE] = "VERBOSE";
 LEVELS[LEVEL_TEST] = "TEST";
 LEVELS[LEVEL_INFO] = "INFO";
-LEVELS[LEVEL_WARN] = "WARN";
-LEVELS[LEVEL_ERROR] = "ERROR";
+LEVELS[LEVEL_WARN] = scriptutil.format("WARN", scriptutil.FG_LIGHT_YELLOW);
+LEVELS[LEVEL_ERROR] = scriptutil.format("ERROR", scriptutil.FG_RED);
 
 // grock
 // LEVELS (DEBUG|TEST|VERBOSE|INFO||WARN|ERROR)

@@ -3,15 +3,18 @@ import os
 from hesburgh import heslog, hesutil
 import re
 
+# define Abort exception so we can catch it instead of the base Exception class when safely aborting
+class Abort(Exception):
+  pass
+
 
 class Config(object):
   def __init__(self, filename, args, timestamp):
     if not os.path.isfile(filename):
-      raise Exception("%s is not a valid config file" % filename)
+      raise Abort("%s is not a valid config file" % filename)
 
     self.args = args
     self.timestamp = timestamp
-    self.valid = True
 
     self.filename = filename
 
@@ -25,25 +28,19 @@ class Config(object):
     self.replaceRe = re.compile("\${(.*)}")
     self.deployFolderStr = None
 
-    self._validate()
-    if not self.valid:
-      raise Exception("Config validation failed")
-
 
   def _singleLambdaEnv(self, env):
     environs = {}
     for var in env:
       if "Name" not in var:
         heslog.error("Trying to set variable for %s with no name" % (lambdaName))
-        self.valid = False
-        continue
+        raise Abort("Invalid Config")
 
       name = self.confSub(var.get("Name"))
 
       if "Value" not in var:
         heslog.error("Trying to set %s for %s with no value" % (name, lambdaName))
-        self.valid = False
-        continue
+        raise Abort("Invalid Config")
 
       environs[name] = self.confSub(var.get("Value"))
     return environs
@@ -58,12 +55,10 @@ class Config(object):
     for lambdaConf in confSection.get("Single", []):
       if "FunctionName" not in lambdaConf:
         heslog.error("lambda name not specified in lambdaEnv")
-        self.valid = False
-        continue
+        raise Abort("Invalid Config")
       if not lambdaConf.get("Environment") and not globalEnvs:
         heslog.error("Trying to set lambda (%s) environ without specified variables" % lambdaConf.get("name"))
-        self.valid = False
-        continue
+        raise Abort("Invalid Config")
 
       lambdaName = self.confSub(lambdaConf.get("FunctionName"))
       key = self.confSub(lambdaConf.get("KMSKey"))
@@ -93,12 +88,12 @@ class Config(object):
       # either specify a template in the config or dont publish (use template on s3)
       if not template or (not self.args.noPublish and template not in self.artifactTemplates()):
         heslog.error("Template %s must be present in the Artifacts.Templates section of the config" % template)
-        self.valid = False
+        raise Abort("Invalid Config")
 
       stackName = self.confSub(stack.get("Name"))
       if not stackName:
         heslog.error("Stack requires a Name")
-        self.valid = False
+        raise Abort("Invalid Config")
 
       for gateway in stack.get("Gateways", []):
         self.gateways.append({ "name": gateway, "stack": stackName })
@@ -131,15 +126,15 @@ class Config(object):
       heslog.error("Config requires templates")
 
 
-  def _validate(self):
+  def validate(self):
     if "Service" not in self.config:
       heslog.error("Config requires a 'service' field with the service name")
-      self.valid = False
+      raise Abort("Invalid Config")
 
     self.deployFolderStr = self.args.deployFolder or "$SERVICE/$STAGE/$TIMESTAMP"
     if "$DEPLOY_FOLDER" in self.deployFolderStr:
       heslog.error("Cannot use $DEPLOY_FOLDER in the deployFolder param")
-      self.valid = False
+      raise Abort("Invalid Config")
     self.deployFolderStr = self.confSub(self.deployFolderStr).strip('/')
 
     self._validateArtifacts()
@@ -158,7 +153,7 @@ class Config(object):
     ret = ret.replace("$TIMESTAMP", self.timestamp)
 
     # we wont use any of this during deletion or publish, so don't require it
-    if not self.args.delete and not self.args.publishOnly:
+    if not self.args.delete and not self.args.publish:
       for envVal in self.replaceRe.findall(ret):
         ret = ret.replace("${%s}" % envVal, hesutil.getEnv(envVal, throw=True))
     return ret
