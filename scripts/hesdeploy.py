@@ -145,8 +145,7 @@ def main():
   timer = hesutil.Timer(True)
 
   try:
-    confName = args.config or "config.yml"
-    config = deployConfig.Config(confName, args, timestamp)
+    config = deployConfig.Config(args, timestamp)
 
     life = lifecycle.Lifecycle(args, config, timer)
     life.run()

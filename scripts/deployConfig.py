@@ -9,9 +9,21 @@ class Abort(Exception):
 
 
 class Config(object):
-  def __init__(self, filename, args, timestamp):
-    if not os.path.isfile(filename):
-      raise Abort("%s is not a valid config file" % filename)
+  def __init__(self, args, timestamp):
+    possibleConfigs = []
+    if args.config:
+      possibleConfigs.append(args.config)
+    possibleConfigs += ['config.yml', 'hesdeployConfig.yml']
+
+    filename = None
+    for c in possibleConfigs:
+      if os.path.isfile(c):
+        filename = c
+        break
+    if not filename:
+      raise Abort("No config file found")
+
+    heslog.verbose("Using config file %s" % filename)
 
     self.args = args
     self.timestamp = timestamp
