@@ -54,7 +54,7 @@ def validateArgs(args):
     and _argExcludes(args, "listStages", "pre", "post", "create", "update", "delete", "replace", "noAws", "publish", "env", "keepLocal")
 
     and _argRequres(args, "noPublish", "deployFolder")
-    and _argRequres(args, "y", "stage")
+    and _argRequres(args, "yes", "stage")
   )
 
 # gracefully handle ctrl+c
@@ -101,7 +101,7 @@ def main():
 
   # specify stack interaction
   parser.add_argument('--create', action='store_true',
-    help="Create stack if it doesn't exist, otherwise skip all deployment steps (will still do pre and post deploy)")
+    help="Create stack if it doesn't exist")
   parser.add_argument('--update', action='store_true',
     help="Update stack if it exists, otherwise error and quit")
   parser.add_argument('--replace', action='store_true',
@@ -144,13 +144,16 @@ def main():
 
   timer = hesutil.Timer(True)
 
-  confName = args.config or "config.yml"
-  config = deployConfig.Config(confName, args, timestamp)
+  try:
+    config = deployConfig.Config(args, timestamp)
 
-  life = lifecycle.Lifecycle(args, config, timer)
-  life.run()
+    life = lifecycle.Lifecycle(args, config, timer)
+    life.run()
 
-  heslog.info("Total Time: %s" % timer.end())
+    heslog.info("Total Time: %s" % timer.end())
+  except Abort as e:
+    heslog.info("Aborting due to %s" % e)
+    sys.exit(1)
 
   if life.deployFailure:
     sys.exit(1)

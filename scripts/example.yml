@@ -1,5 +1,30 @@
 Service: servicename
 
+# contains a function def run(stage):
+# input:
+  # stage: [string]
+# return: both keys are optional, but a dict is required
+  # {
+  #   error: [error string] ## if present, throws abort
+  #   env: { [k]:[v]... } ## vars to insert into env
+  # }
+PreDeploy: preDeploy.py
+
+# contains a function def run(stage, outputs):
+# input:
+  # stage: [string]
+  # outputs:
+  # {
+  #   [stackname]: {
+  #     arn: [val],
+  #     outputs: {
+  #       [k]: [v]
+  #     },
+  #   }
+  # }
+# no return value expected
+PostDeploy: postDeploy.py
+
 Stacks:
   # Global variables used in every stack (Optional)
   #  Anything specified here will be overwritten if something by the same name is specified in a stack

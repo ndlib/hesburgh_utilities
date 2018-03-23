@@ -14,8 +14,6 @@ import deployHelpers
 
 # TODO:
 #   use changesets instead of straight deploy commands
-#   run pre-deploy scripts
-#   run post-deploy scripts
 
 
 # make sure given stage contains valid characters
@@ -32,11 +30,22 @@ class Lifecycle(object):
 
     self.deployDir = "deploy_%s" % self.config.timestamp
 
-    self.stackFnKey = '_stack_fn_'
+    self.stackFnKey = "_stack_fn_"
     self.deploymentStepOrder = [
       {
         "key": "pre",
         "fn": self.preDeploy,
+      },
+      {
+        # predeploy may update params, so this needs to be after that
+        "key": "validateConfig",
+        "fn": self.config.validate
+      },
+      {
+        # config validation creates stack info, this must be after that
+        #  as this then sets capability info
+        "key": "validateTemplates",
+        "fn": self.validateTemplates,
       },
       {
         "key": "publish",
@@ -53,9 +62,25 @@ class Lifecycle(object):
       {
         "key": "post",
         "fn": self.postDeploy,
-      }
+      },
+      {
+        "key": "apiDeploy",
+        "fn": self.apiDeploy,
+      },
+      {
+        "key": "cleanup",
+        "fn": self.cleanup,
+      },
     ]
-    self.stackAction = None
+
+    self.dontSkipSteps = [
+      "validateTemplates",
+      "validateConfig",
+      self.stackFnKey,
+      "apiDeploy",
+      "cleanup",
+    ]
+    self.stackAction = { "key": "NoOp", "fn": deployHelpers.NOOP }
     self.steps = []
 
     self.cfClient = None
@@ -63,8 +88,17 @@ class Lifecycle(object):
       self.cfClient = boto3.client('cloudformation')
 
 
+  def confirm(self, message):
+    if self.args.yes:
+      heslog.info("Prompt: %s" % message)
+      heslog.info("--yes passed, continuing without input")
+      return True
+
+    return scriptutil.userConfirm(message)
+
+
   # Used to check if any of the specified "exitOn" args were passed in as cli args
-  def _shouldRunByArgs(self, name, *exitOn):
+  def _shouldRunUnless(self, name, *exitOn):
     for e in exitOn:
       if vars(self.args).get(e):
         heslog.info("Skipping %s because '%s' was specified" % (name, e))
@@ -148,10 +182,8 @@ class Lifecycle(object):
       heslog.error(e)
 
 
-  def preDeploy(self):
-    heslog.addContext(stage="preDeploy")
-
-    if self._shouldRunByArgs("template validation", "noAws"):
+  def validateTemplates(self):
+    if not self.args.noAws and self.stackFnKey in self.steps:
       file = "_"
       try:
         heslog.info("Validating Templates")
@@ -164,14 +196,28 @@ class Lifecycle(object):
         heslog.error(e)
         raise Abort("Validation Failure on %s" % file)
 
-    if self._shouldRunByArgs("artifact creation", "noPublish"):
-      if self.config.artifactZips():
-        os.mkdir(self.deployDir)
+
+  def preDeploy(self):
+    heslog.addContext(stage="preDeploy")
+    if self.config.preScript:
+      heslog.info("Running pre deploy script %s" % self.config.preScript)
+      output = deployHelpers.runScript(self.config.preScript, stage=self.args.stage)
+      if output.get("error"):
+        heslog.error(output.get("error"))
+        raise Abort("Pre Deploy Failure")
+
+      env = output.get("env")
+      if env:
+        for k,v in env.iteritems():
+          os.environ[k] = v
 
 
   def package(self):
     heslog.addContext(stage="package")
     heslog.info("Creating artifacts")
+
+    if self.config.artifactZips():
+      os.mkdir(self.deployDir)
 
     for zipConf in self.config.artifactZips():
       deployHelpers.makeZip("%s/%s.zip" % (self.deployDir, zipConf.get("Name")), zipConf.get("Files"))
@@ -179,12 +225,12 @@ class Lifecycle(object):
 
 
   def publish(self):
-    if self._shouldRunByArgs("publish steps", "noPublish"):
-      self.package()
+    self.package()
 
+    if self._shouldRunUnless("publish steps", "noPublish"):
       heslog.addContext(stage="publish")
       try:
-        if self._shouldRunByArgs("publishing files", "noAws"):
+        if self._shouldRunUnless("publishing files", "noAws"):
           client = boto3.client('s3')
           heslog.info("Publishing to s3://%s/%s" % (self.args.deployBucket, self.config.deployFolder()))
 
@@ -211,12 +257,11 @@ class Lifecycle(object):
 
   def createStacks(self):
     heslog.addContext(stage="createStacks")
-    if self._shouldRunByArgs("cloudformation", "publish", "env"):
-      for stackConfig in self.config.stacks():
-        if self.deployFailure:
-          heslog.warn("Breaking due to DeployFailure")
-          break
-        self._createSingleStack(stackConfig)
+    for stackConfig in self.config.stacks():
+      if self.deployFailure:
+        heslog.warn("Breaking due to DeployFailure")
+        break
+      self._createSingleStack(stackConfig)
 
 
   def updateStacks(self):
@@ -298,10 +343,19 @@ class Lifecycle(object):
     stackArgs = self._stackArgs(stackConfig)
     template = stackConfig.get("template")
 
-    if self._shouldRunByArgs("running cloudformation for %s" % template, "noAws"):
+    if self._shouldRunUnless("running cloudformation for %s" % template, "noAws"):
       if self._stackExists(stackName):
-        heslog.removeContext("stackName")
-        raise Abort("Cannot create existing stack %s" % stackName)
+        # if --yes is passed, skip this prompt.
+        # --yes implies we've passed the args we want, don't assume --create = --update
+        if not self.args.yes and scriptutil.userConfirm("Stack already exists, Update instead?"):
+          self._updateSingleStack(stackConfig)
+          return
+        elif self.confirm("Continue with other steps?"):
+          heslog.removeContext("stackName")
+          return
+        else:
+          heslog.removeContext("stackName")
+          raise Abort("Cannot create existing stack %s" % stackName)
 
       try:
         heslog.info("Creating Stack '%s' with %s" % (stackName, template))
@@ -322,7 +376,7 @@ class Lifecycle(object):
     stackArgs = self._stackArgs(stackConfig)
     template = stackConfig.get("template")
 
-    if self._shouldRunByArgs("running cloudformation for %s" % template, "noAws"):
+    if self._shouldRunUnless("running cloudformation for %s" % template, "noAws"):
       if not self._stackExists(stackName):
         heslog.removeContext("stackName")
         raise Abort("Cannot update non-existing stack %s" % stackName)
@@ -348,7 +402,7 @@ class Lifecycle(object):
       heslog.removeContext("stackName")
       return
 
-    if self._shouldRunByArgs("stack delete", "noAws"):
+    if self._shouldRunUnless("stack delete", "noAws"):
       heslog.info("Deleting stack %s" % stackName)
       response = self.cfClient.delete_stack(
         StackName=stackName,
@@ -363,7 +417,7 @@ class Lifecycle(object):
   def envUpdate(self):
     heslog.addContext(stage="envUpdate")
 
-    if (self._shouldRunByArgs("lambda update", "noAws", "publish")
+    if (self._shouldRunUnless("lambda update", "noAws")
         and len(self.config.lambdaVars()) > 0
         and not self.deployFailure):
       for lambdaConf in self.config.lambdaVars():
@@ -371,18 +425,48 @@ class Lifecycle(object):
       heslog.info("Finished Updating Lambdas in %ss" % (self.timer.step(True)))
 
 
-  def postDeploy(self):
-    heslog.addContext(stage="postDeploy")
-
-    if (self._shouldRunByArgs("api deploy", "noAws", "publish")
+  def apiDeploy(self):
+    heslog.addContext(stage="apiDeploy")
+    # gross logic to skip this step, basically:
+    # if we can access aws, we deployed the stack successfully, and there is a gateway in the config
+    if (self._shouldRunUnless("api deploy", "noAws")
+        and self.stackFnKey in self.steps
         and not self.deployFailure
-        and len(self.config.gateways) > 0):
+        and len(self.config.gateways) > 0
+      ):
       for gatewayInfo in self.config.gateways:
         self._deployGateway(gatewayInfo)
       heslog.info("Finshed Deploying Gateways in %ss" % (self.timer.step(True)))
 
+
+  def postDeploy(self):
+    heslog.addContext(stage="postDeploy")
+    outputs = {}
+    # If we deleted the stacks, don't retrieve non-existant outputs
+    if not self.args.noAws and self.stackAction.get("key") != "delete":
+      # describe all the stacks so we can pass info to post
+      for stackConfig in self.config.stacks():
+        name = stackConfig.get("name")
+        response = self.cfClient.describe_stacks(
+          StackName=name
+        )
+        stack = response.get("Stacks")[0]
+
+        outputs[name] = {
+          # map outputs to k:v to make them easier to use
+          "outputs": { x.get("OutputKey"): x.get("OutputValue") for x in stack.get("Outputs", {}) },
+          "arn": stack.get("StackId", {}),
+        }
+
+    if self.config.postScript:
+      heslog.info("Running post deploy script %s" % self.config.postScript)
+      deployHelpers.runScript(self.config.postScript, stage=self.args.stage, outputs=outputs)
+
+
+  def cleanup(self):
+    heslog.addContext(stage="cleanup")
     # remove temp directory
-    if self._shouldRunByArgs("delete local artifacts", "keepLocal") and os.path.exists(self.deployDir):
+    if self._shouldRunUnless("delete local artifacts", "keepLocal") and os.path.exists(self.deployDir):
       for root, dirs, files in os.walk(self.deployDir):
         for file in files:
           heslog.verbose("Removing tmp file %s/%s" % (root, file))
@@ -391,7 +475,7 @@ class Lifecycle(object):
       os.rmdir(self.deployDir)
 
 
-  def getStages(self, service):
+  def getExistingStages(self, service):
     statusFilter = [
       'CREATE_IN_PROGRESS',
       'CREATE_FAILED',
@@ -444,6 +528,7 @@ class Lifecycle(object):
         heslog.error("For the safety of any templates it is passed to, 'stage' must only contain alpha-numeric characters")
       else:
         self.args.stage = givenStage
+        self.args.create = True
         return
 
 
@@ -466,23 +551,40 @@ class Lifecycle(object):
       if selected == 'n':
         return self._inputNewStage()
 
-      heslog.info("Selected stage %s" % self.args.stage)
-      if scriptutil.isTruthy(scriptutil.userInput("Is this correct? [Y|N]")):
-        self.args.stage = stages[int(selected)]
+      selected = stages[int(selected)]
+      heslog.info("Selected stage %s" % selected)
+      if self.confirm("Is this correct? [Y|N]"):
+        self.args.stage = selected
+        self.args.update = True
+        break
 
 
-  def setStepsToRun(self, existingStages):
+  def setStepsToRun(self):
+    varArgs = vars(self.args)
     # determine if we are limiting the steps because some were specified
     for s in self.deploymentStepOrder:
       stepName = s.get("key")
-      if vars(self.args).get(stepName):
+      if varArgs.get(stepName):
         self.steps.append(stepName)
 
     # if a step is specified, we want to exclude all other non-specified steps
     isExlusive = len(self.steps) > 0
-    # otherwise, do all steps
+    # otherwise, do all non-excluded steps
     if not isExlusive:
-      self.steps = [ s.get("key") for s in self.deploymentStepOrder ]
+      for s in self.deploymentStepOrder:
+        # check to see if this step was excluded
+        if not varArgs.get("no%s" % s.get("key").title()):
+          self.steps.append(s.get("key"))
+
+    self.chooseStackAction()
+
+    heslog.debug("running steps %s" % self.steps)
+
+
+  def chooseStackAction(self):
+    if self.stackAction.get("key") != "NoOp":
+      heslog.debug("Already set stack option, will not override")
+      return
 
     possibleStackSteps = [
       {
@@ -514,16 +616,6 @@ class Lifecycle(object):
             self.steps.append(self.stackFnKey)
           break
 
-      # if no stack func is specified, and we're not excluding steps, do create or update
-      if self.stackAction is None and not isExlusive:
-        self.stackAction = { "key": "CreateOrUpdate", "fn": self.createOrUpdateStacks }
-
-    # if nothign set the stackAction, just do a no op
-    if self.stackAction is None:
-      self.stackAction = { "key": "NoOp", "fn": deployHelpers.NOOP }
-
-    heslog.debug("running steps %s" % self.steps)
-
 
   # Run the entire deployment
   def run(self):
@@ -535,7 +627,7 @@ class Lifecycle(object):
 
       stages = []
       if not self.args.noAws:
-        stages = self.getStages(self.config.serviceName())
+        stages = self.getExistingStages(self.config.serviceName())
 
       # If we're just listing existing stages, do so
       if self.args.listStages:
@@ -549,24 +641,23 @@ class Lifecycle(object):
         raise Abort("Paramter Validation")
 
       # Set the steps of deployment to run based on given args
-      self.setStepsToRun(stages)
+      self.setStepsToRun()
 
       if not self.args.noAws:
         # If we don't have a stage, prompt user to select an existing one or create a new one
         if not self.args.stage and self.stackFnKey in self.steps:
           self.selectStageTouse(stages)
+          # Need to update the stack action after choosing a stage
+          self.chooseStackAction()
 
         # confirm stack action on stage
         if self.stackFnKey in self.steps:
-          if not scriptutil.isTruthy(scriptutil.userInput("%s stage '%s'? [Y|N]" % (self.stackAction.get("key"), self.args.stage))):
+          if not self.confirm("%s stage '%s'? [Y|N]" % (self.stackAction.get("key"), self.args.stage)):
             raise Abort("Canceled Stack Action")
 
-
-      # We should now have a stage selected, which means we can validate the config file
-      self.config.validate()
-
       for step in self.deploymentStepOrder:
-        if step.get("key") in self.steps or step == self.stackFnKey:
+        stepKey = step.get("key")
+        if stepKey in self.steps or stepKey in self.dontSkipSteps:
           fn = step.get("fn")
           fn()
 

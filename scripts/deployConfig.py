@@ -9,9 +9,21 @@ class Abort(Exception):
 
 
 class Config(object):
-  def __init__(self, filename, args, timestamp):
-    if not os.path.isfile(filename):
-      raise Abort("%s is not a valid config file" % filename)
+  def __init__(self, args, timestamp):
+    possibleConfigs = []
+    if args.config:
+      possibleConfigs.append(args.config)
+    possibleConfigs += ['config.yml', 'hesdeployConfig.yml']
+
+    filename = None
+    for c in possibleConfigs:
+      if os.path.isfile(c):
+        filename = c
+        break
+    if not filename:
+      raise Abort("No config file found")
+
+    heslog.verbose("Using config file %s" % filename)
 
     self.args = args
     self.timestamp = timestamp
@@ -20,6 +32,20 @@ class Config(object):
 
     with open(filename, "r") as f:
       self.config = yaml.load(f)
+
+    self.preScript = self.config.get("PreDeploy")
+    if self.preScript:
+      if not os.path.exists(self.preScript):
+        heslog.error("Pre script %s doesn't exist" % self.preScript)
+        raise Abort("Invalid config")
+      self.preScript = os.path.abspath(self.preScript)
+
+    self.postScript = self.config.get("PostDeploy")
+    if self.postScript:
+      if not os.path.exists(self.postScript):
+        heslog.error("Post script %s doesn't exist" % self.postScript)
+        raise Abort("Invalid config")
+      self.postScript = os.path.abspath(self.postScript)
 
     self.lambdaEnvs = []
     self.stackDefs = []

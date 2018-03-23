@@ -3,5 +3,5 @@ js/node_modules
 *.pyc
 py/dist
 py/build
-py/*.egg*
+*.egg*
 *Env

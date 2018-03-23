@@ -47,25 +47,34 @@ These can be chained with eachother and with environment variables, for instance
 
 After assuming the required role and sourcing required secrets files, the most basic usage is as follows:
 ```
-hesdeploy -s [stage]
+hesdeploy
 ```
 
 ## Options
 | Option      | Parameter  | Description
 |-------------|------------|------------
-| --help, -h   |            | Show the help message
-| --stage, -s  | stage      | The stage to deploy to (eg. dev). Must only contain alpha-numeric ascii characters
-| --config, -c | config     | Config file to use as input (default is config.yml)
+| --stage, -s | stage | The stage to deploy to. Must only contain alpha-numeric ascii characters
+| --config, -c | config | Config file to use as input (default is config.yml)
 | --deployBucket | bucketName | The bucket the artifacts will be put into (default is testlibnd-cf)
-| --deployFolder | folder    | Override the deployment folder (default is $SERVICE/$STAGE/$TIMESTAMP)
-| --delete      |           | Delete the stack(s)
-| --publishOnly |           | Publish files to the S3 bucket without calling the CF files
-| --envOnly    |            | Update lambda environment(s) without publishing/deploying
-| --noPublish  |            | Don't create or publish artifacts (CF, code zip, etc) NOTE: You must override deployFolder if you specify this argument
-| --noAws      |            | Don't interact with aws at all
-| --keepLocal  |            | Don't delete locally created artifacts on completion
-| --verbose    |            | Verbose output
-| --debug      |            | Debug output
+| --deployFolder | folder | Override the deployment folder (default is $SERVICE/$STAGE/$TIMESTAMP)
+| --pre | | Do pre-deploy step (excludes all other steps, addative with other step flags)
+| --post | | Do post-deploy step (excludes all other steps, addative with other step flags)
+| --publish | | Do the publish step (excludes all other steps, addative with other step flags)
+| --env | | Do the lambda environment update step (excludes all other steps, addative with other step flags)
+| --noPre | | Skip pre-deploy step
+| --noPost | | Skip post-deploy step
+| --noPublish | | Don't create or publish artifacts (CF, code zip, etc) NOTE: You must override deployFolder if you specify this argument
+| --noEnv | | Skip the lambda environment update step
+| --create | | Create stack if it doesn't exist
+| --update | | Update stack if it exists, otherwise error and quit
+| --replace | | Tear down existing stack if it exists and create a new one with the same stage name
+| --delete | | Delete the stack(s)
+| --noAws | | Don't interact with aws at all
+| --keepLocal | | Don't delete locally created artifacts on completion
+| --listStages | | Lists all existing stages for the project, exits on completion
+| --yes, -y | | Yes to all prompts (no interaction)
+| --verbose | | Verbose output
+| --debug | | Debug output
 
 
 ## Tech Notes
