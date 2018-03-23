@@ -22,13 +22,13 @@ setup(
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see
     # https://packaging.python.org/en/latest/single_source_version.html
-    version='0.8.2',
+    version='0.9.1',
 
     description='Hesburgh Libraries Deployment script',
     # long_description=long_description,
 
     # The project's main homepage.
-    url='https://github.com/ndlib/hesburgh_utilities',
+    url='https://github.com/ndlib/hesburgh_utilities/tree/master/scripts',
 
     # Author details
     author='Harrison Beachey',
@@ -66,13 +66,13 @@ setup(
 
     # Alternatively, if you want to distribute just a my_module.py, uncomment
     # this:
-    py_modules=["hesdeploy", "deployConfig", "deployHelpers"],
+    py_modules=["hesdeploy", "deployConfig", "deployHelpers", "lifecycle"],
 
     # List run-time dependencies here.  These will be installed by pip when
     # your project is installed. For an analysis of "install_requires" vs pip's
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
-    install_requires=['boto3', 'hesburgh_utilities', 'PyYAML'],
+    install_requires=['boto3', 'hesburgh_utilities>=1.0.8', 'PyYAML'],
 
     # # List additional groups of dependencies here (e.g. development
     # # dependencies). You can install these using the following syntax,
