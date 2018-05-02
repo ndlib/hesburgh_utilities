@@ -583,7 +583,7 @@ class Lifecycle(object):
     #   no other steps matter (pre might set a required env var)
     if varArgs.get("delete"):
       self.chooseStackAction()
-      if not varArgs.noPre:
+      if not varArgs.get("noPre"):
         self.steps.append('pre')
       return
 
