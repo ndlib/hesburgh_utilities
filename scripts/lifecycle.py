@@ -87,6 +87,20 @@ class Lifecycle(object):
     if not self.args.noAws:
       self.cfClient = boto3.client('cloudformation')
 
+    # since we must pass cloudformatino a role to use
+    #   we need the current account id (since the role name is static)
+    self.accountId = self.getAccountId()
+
+
+  def getAccountId(self):
+    client = boto3.client('sts')
+    try:
+      response = client.get_caller_identity()
+      return response.get("Account")
+    except Exception as e:
+      heslog.error(e)
+      raise Abort("Couldn't get assumed role account")
+
 
   def confirm(self, message):
     if self.args.yes:
@@ -317,6 +331,12 @@ class Lifecycle(object):
       "Capabilities": stackConfig.get("capabilities"),
       "Tags": tags,
     }
+
+    # Tell cloudformation to use this role to do the deployment
+      #   the name is static accross accounts, so just sub in the current account id
+    if self.args.useServiceRole:
+      stackArgs["RoleARN"] = "arn:aws:iam::%s:role/wse/service-role/lib-developer-cf-servicerole" % self.accountId
+
     heslog.verbose("Stack args %s" % stackArgs)
     return stackArgs
 
@@ -443,7 +463,7 @@ class Lifecycle(object):
     heslog.addContext(stage="postDeploy")
     outputs = {}
     # If we deleted the stacks, don't retrieve non-existant outputs
-    if not self.args.noAws and self.stackAction.get("key") != "delete":
+    if not self.args.noAws:
       # describe all the stacks so we can pass info to post
       for stackConfig in self.config.stacks():
         name = stackConfig.get("name")
@@ -532,7 +552,7 @@ class Lifecycle(object):
         return
 
 
-  def selectStageTouse(self, stages):
+  def selectStageToUse(self, stages):
     if len(stages) <= 0:
       heslog.info("No stages found for %s" % self.config.serviceName())
       return self._inputNewStage()
@@ -561,6 +581,15 @@ class Lifecycle(object):
 
   def setStepsToRun(self):
     varArgs = vars(self.args)
+
+    # if we're deleting the stack, just run pre and delete
+    #   no other steps matter (pre might set a required env var)
+    if varArgs.get("delete"):
+      self.chooseStackAction()
+      if not varArgs.get("noPre"):
+        self.steps.append('pre')
+      return
+
     # determine if we are limiting the steps because some were specified
     for s in self.deploymentStepOrder:
       stepName = s.get("key")
@@ -573,10 +602,8 @@ class Lifecycle(object):
     if not isExlusive:
       for s in self.deploymentStepOrder:
         # check to see if this step was excluded
-        if not varArgs.get("no%s" % s.get("key").title()):
+        if not varArgs.get("no%s" % s.get("key").title()) and s.get("key") != self.stackFnKey:
           self.steps.append(s.get("key"))
-
-    self.chooseStackAction()
 
     heslog.debug("running steps %s" % self.steps)
 
@@ -616,12 +643,15 @@ class Lifecycle(object):
             self.steps.append(self.stackFnKey)
           break
 
+      if self.stackFnKey not in self.steps:
+        heslog.info("No stack action [create, update, delete, replace] was passed")
+
 
   # Run the entire deployment
   def run(self):
     try:
       # Make sure we assumed a role if needed
-      if not self.args.noAws and not hesutil.getEnv("AWS_ROLE_ARN"):
+      if not self.args.noAws and not hesutil.getEnv("AWS_SESSION_TOKEN"):
         heslog.error("When 'noAws' has not been specified you must assume a role to run this script")
         raise Abort('No Assumed Role')
 
@@ -645,10 +675,10 @@ class Lifecycle(object):
 
       if not self.args.noAws:
         # If we don't have a stage, prompt user to select an existing one or create a new one
-        if not self.args.stage and self.stackFnKey in self.steps:
-          self.selectStageTouse(stages)
-          # Need to update the stack action after choosing a stage
-          self.chooseStackAction()
+        if not self.args.stage:
+          self.selectStageToUse(stages)
+
+        self.chooseStackAction()
 
         # confirm stack action on stage
         if self.stackFnKey in self.steps:
