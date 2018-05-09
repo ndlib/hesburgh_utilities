@@ -55,6 +55,7 @@ hesdeploy
 |-------------|------------|------------
 | --stage, -s | stage | The stage to deploy to. Must only contain alpha-numeric ascii characters
 | --config, -c | config | Config file to use as input (default is config.yml)
+| --useServiceRole | | Passes the predefined service role to cloudformation for stack actions (required for libnd)
 | --deployBucket | bucketName | The bucket the artifacts will be put into (default is testlibnd-cf)
 | --deployFolder | folder | Override the deployment folder (default is $SERVICE/$STAGE/$TIMESTAMP)
 | --pre | | Do pre-deploy step (excludes all other steps, addative with other step flags)

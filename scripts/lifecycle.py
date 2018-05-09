@@ -330,10 +330,13 @@ class Lifecycle(object):
       "Parameters": params,
       "Capabilities": stackConfig.get("capabilities"),
       "Tags": tags,
-      # Tell cloudformation to use this role to do the deployment
-      #   the name is static accross accounts, so just sub in the current account id
-      "RoleARN": "arn:aws:iam::%s:role/wse/service-role/lib-developer-cf-servicerole" % self.accountId,
     }
+
+    # Tell cloudformation to use this role to do the deployment
+      #   the name is static accross accounts, so just sub in the current account id
+    if self.args.useServiceRole:
+      stackArgs["RoleARN"] = "arn:aws:iam::%s:role/wse/service-role/lib-developer-cf-servicerole" % self.accountId
+
     heslog.verbose("Stack args %s" % stackArgs)
     return stackArgs
 

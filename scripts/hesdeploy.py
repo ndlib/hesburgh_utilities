@@ -78,6 +78,8 @@ def main():
     help='The bucket the artifacts will be put into (default is testlibnd-cf)')
   parser.add_argument('--deployFolder', type=str,
     help='Override the deployment folder (default is $SERVICE/$STAGE/$TIMESTAMP)')
+  parser.add_argument('--useServiceRole', action='store_true', dest='useServiceRole', default=False,
+    help='Pass the service role to cloudformation for stack actions (defaults to false)')
 
   # specify steps to do
   parser.add_argument('--pre', action='store_true',
