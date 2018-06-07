@@ -1,0 +1,110 @@
+0 info it worked if it ends with ok
+1 verbose cli [ '/Users/hbeachey/.nvm/versions/node/v6.9.2/bin/node',
+1 verbose cli   '/Users/hbeachey/.nvm/versions/node/v6.9.2/bin/npm',
+1 verbose cli   'publish' ]
+2 info using npm@3.10.9
+3 info using node@v6.9.2
+4 verbose publish [ '.' ]
+5 silly cache add args [ '.', null ]
+6 verbose cache add spec .
+7 silly cache add parsed spec Result {
+7 silly cache add   raw: '.',
+7 silly cache add   scope: null,
+7 silly cache add   escapedName: null,
+7 silly cache add   name: null,
+7 silly cache add   rawSpec: '.',
+7 silly cache add   spec: '/Users/hbeachey/code/hesburgh_utilities/js',
+7 silly cache add   type: 'directory' }
+8 verbose addLocalDirectory /Users/hbeachey/.npm/@hesburgh-wse/hesburgh_utilities/1.0.7/package.tgz not in flight; packing
+9 verbose correctMkdir /Users/hbeachey/.npm correctMkdir not in flight; initializing
+10 info lifecycle @hesburgh-wse/hesburgh_utilities@1.0.7~prepublish: @hesburgh-wse/hesburgh_utilities@1.0.7
+11 silly lifecycle @hesburgh-wse/hesburgh_utilities@1.0.7~prepublish: no script for prepublish, continuing
+12 verbose tar pack [ '/Users/hbeachey/.npm/@hesburgh-wse/hesburgh_utilities/1.0.7/package.tgz',
+12 verbose tar pack   '/Users/hbeachey/code/hesburgh_utilities/js' ]
+13 verbose tarball /Users/hbeachey/.npm/@hesburgh-wse/hesburgh_utilities/1.0.7/package.tgz
+14 verbose folder /Users/hbeachey/code/hesburgh_utilities/js
+15 verbose addLocalTarball adding from inside cache /Users/hbeachey/.npm/@hesburgh-wse/hesburgh_utilities/1.0.7/package.tgz
+16 verbose correctMkdir /Users/hbeachey/.npm correctMkdir not in flight; initializing
+17 silly cache afterAdd @hesburgh-wse/hesburgh_utilities@1.0.7
+18 verbose afterAdd /Users/hbeachey/.npm/@hesburgh-wse/hesburgh_utilities/1.0.7/package/package.json not in flight; writing
+19 verbose correctMkdir /Users/hbeachey/.npm correctMkdir not in flight; initializing
+20 verbose afterAdd /Users/hbeachey/.npm/@hesburgh-wse/hesburgh_utilities/1.0.7/package/package.json written
+21 silly publish { name: '@hesburgh-wse/hesburgh_utilities',
+21 silly publish   description: 'Hesburgh Javascript Utilities',
+21 silly publish   version: '1.0.7',
+21 silly publish   license: 'Apache 2.0',
+21 silly publish   main: 'index.js',
+21 silly publish   author: { name: 'Harrison Beachey', email: 'hbeachey@nd.edu' },
+21 silly publish   repository:
+21 silly publish    { type: 'git',
+21 silly publish      url: 'git+https://github.com/ndlib/hesburgh_utilities.git' },
+21 silly publish   dependencies: { async: '^2.5.0' },
+21 silly publish   devDependencies: { 'aws-sdk': '^2.82.0' },
+21 silly publish   scripts:
+21 silly publish    { test: 'node test/test.js',
+21 silly publish      prepack: 'rm testdata && cp -r ../testdata .',
+21 silly publish      postpack: 'rm -r testdata && ln -s ../testdata' },
+21 silly publish   bugs: { url: 'https://github.com/ndlib/hesburgh_utilities/issues' },
+21 silly publish   readme: 'ERROR: No README data found!',
+21 silly publish   homepage: 'https://github.com/ndlib/hesburgh_utilities#readme',
+21 silly publish   _id: '@hesburgh-wse/hesburgh_utilities@1.0.7',
+21 silly publish   _shasum: 'fbcb36e7e3271443e4ba6a6c0acd061345aac624',
+21 silly publish   _from: '.' }
+22 verbose getPublishConfig undefined
+23 silly mapToRegistry name @hesburgh-wse/hesburgh_utilities
+24 silly mapToRegistry scope (from package name) @hesburgh-wse
+25 verbose mapToRegistry no registry URL found in name for scope @hesburgh-wse
+26 silly mapToRegistry using default registry
+27 silly mapToRegistry registry https://registry.npmjs.org/
+28 silly mapToRegistry data Result {
+28 silly mapToRegistry   raw: '@hesburgh-wse/hesburgh_utilities',
+28 silly mapToRegistry   scope: '@hesburgh-wse',
+28 silly mapToRegistry   escapedName: '@hesburgh-wse%2fhesburgh_utilities',
+28 silly mapToRegistry   name: '@hesburgh-wse/hesburgh_utilities',
+28 silly mapToRegistry   rawSpec: '',
+28 silly mapToRegistry   spec: 'latest',
+28 silly mapToRegistry   type: 'tag' }
+29 silly mapToRegistry uri https://registry.npmjs.org/@hesburgh-wse%2fhesburgh_utilities
+30 verbose publish registryBase https://registry.npmjs.org/
+31 silly publish uploading /Users/hbeachey/.npm/@hesburgh-wse/hesburgh_utilities/1.0.7/package.tgz
+32 verbose request uri https://registry.npmjs.org/@hesburgh-wse%2fhesburgh_utilities
+33 verbose request sending authorization for write operation
+34 info attempt registry request try #1 at 11:15:50 AM
+35 verbose request using bearer token for auth
+36 verbose request id a6800bab88a2b59b
+37 http request PUT https://registry.npmjs.org/@hesburgh-wse%2fhesburgh_utilities
+38 http 401 https://registry.npmjs.org/@hesburgh-wse%2fhesburgh_utilities
+39 verbose headers { date: 'Thu, 07 Jun 2018 15:15:51 GMT',
+39 verbose headers   'content-type': 'application/json',
+39 verbose headers   'content-length': '100',
+39 verbose headers   connection: 'keep-alive',
+39 verbose headers   'set-cookie': [ '__cfduid=d782e2ca40d007a3fe82bffa9451466e91528384550; expires=Fri, 07-Jun-19 15:15:50 GMT; path=/; domain=.registry.npmjs.org; HttpOnly' ],
+39 verbose headers   'cf-ray': '427413920ea3a615-IND',
+39 verbose headers   'expect-ct': 'max-age=604800, report-uri="https://report-uri.cloudflare.com/cdn-cgi/beacon/expect-ct"',
+39 verbose headers   'www-authenticate': 'OTP',
+39 verbose headers   server: 'cloudflare' }
+40 verbose request invalidating /Users/hbeachey/.npm/registry.npmjs.org/_40hesburgh-wse_252fhesburgh_utilities on PUT
+41 error publish Failed PUT 401
+42 verbose stack Error: You must provide a one-time pass. Upgrade your client to npm@latest in order to use 2FA. : @hesburgh-wse/hesburgh_utilities
+42 verbose stack     at makeError (/Users/hbeachey/.nvm/versions/node/v6.9.2/lib/node_modules/npm/node_modules/npm-registry-client/lib/request.js:302:12)
+42 verbose stack     at CachingRegistryClient.<anonymous> (/Users/hbeachey/.nvm/versions/node/v6.9.2/lib/node_modules/npm/node_modules/npm-registry-client/lib/request.js:290:14)
+42 verbose stack     at Request._callback (/Users/hbeachey/.nvm/versions/node/v6.9.2/lib/node_modules/npm/node_modules/npm-registry-client/lib/request.js:210:14)
+42 verbose stack     at Request.self.callback (/Users/hbeachey/.nvm/versions/node/v6.9.2/lib/node_modules/npm/node_modules/request/request.js:187:22)
+42 verbose stack     at emitTwo (events.js:106:13)
+42 verbose stack     at Request.emit (events.js:191:7)
+42 verbose stack     at Request.<anonymous> (/Users/hbeachey/.nvm/versions/node/v6.9.2/lib/node_modules/npm/node_modules/request/request.js:1048:10)
+42 verbose stack     at emitOne (events.js:96:13)
+42 verbose stack     at Request.emit (events.js:188:7)
+42 verbose stack     at IncomingMessage.<anonymous> (/Users/hbeachey/.nvm/versions/node/v6.9.2/lib/node_modules/npm/node_modules/request/request.js:969:12)
+43 verbose statusCode 401
+44 verbose pkgid @hesburgh-wse/hesburgh_utilities
+45 verbose cwd /Users/hbeachey/code/hesburgh_utilities/js
+46 error Darwin 17.6.0
+47 error argv "/Users/hbeachey/.nvm/versions/node/v6.9.2/bin/node" "/Users/hbeachey/.nvm/versions/node/v6.9.2/bin/npm" "publish"
+48 error node v6.9.2
+49 error npm  v3.10.9
+50 error code E401
+51 error You must provide a one-time pass. Upgrade your client to npm@latest in order to use 2FA. : @hesburgh-wse/hesburgh_utilities
+52 error If you need help, you may report this error at:
+52 error     <https://github.com/npm/npm/issues>
+53 verbose exit [ 1, true ]

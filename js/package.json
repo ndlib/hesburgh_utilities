@@ -1,5 +1,5 @@
 {
-  "name": "hesburgh_util",
+  "name": "@hesburgh-wse/hesburgh_utilities",
   "description": "Hesburgh Javascript Utilities",
   "version": "1.0.7",
   "license": "Apache 2.0",
