@@ -45,13 +45,27 @@ def epoch():
 # get secrets under specified path and populate valueDict with them
 # returns if there were any new values
 def pathIntoDict(path, valueDict):
-  response = client.get_parameters_by_path(
-    Path=path,
-    Recursive=True,
-    WithDecryption=True
-  )
+  next_token = ''
+  params = []
+  while next_token is not None:
+    if next_token == '':
+      response = client.get_parameters_by_path(
+                    Path=path,
+                    Recursive=True,
+                    WithDecryption=True
+                  )
+      params = response.get("Parameters")
+    else:
+      response = client.get_parameters_by_path(
+                    Path=path,
+                    Recursive=True,
+                    WithDecryption=True,
+                    NextToken=next_token
+                  )
+      params_page = response.get("Parameters")
+      params.extend(params_page)
 
-  params = response.get("Parameters")
+    next_token = response.get('NextToken', None)
 
   for p in params:
     writeInto = valueDict
@@ -237,5 +251,5 @@ def main():
   client = setupClient(args)
   args.func(args)
 
-  if __name__ == "__main__":
-    main()
+if __name__ == "__main__":
+  main()
