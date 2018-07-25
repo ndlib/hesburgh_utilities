@@ -19,6 +19,19 @@ To install the python library to another project, run `pip install hesburgh-util
 ## Utilities:
 ### Logger (heslog)
 
+#### Sentry
+Sentry is cross-platform application monitoring, with a focus on error reporting.  Sentry is integrated into heslog.  The basic workflow
+
+1. create project in Sentry
+2. config app to reference Sentry and add logging
+3. check logs in Sentry
+
+The function setHubContext('project') is used for the app to reference the Sentry project.  It works by taking the argument passed in and going to AWS parameter store for the projects [Sentry DSN](https://docs.sentry.io/quickstart/#configure-the-dsn).  It should be stored at /all/sentry/production/project/dsn
+
+By default messages with log level of warning or error are automatically sent to the speicified Sentry project.  Any message can be logged to Sentry by adding a 'sentry' flag.
+ * JS EX: heslog.info('hello world','','sentry')
+ * PY EX: heslog.info('hello world',sentry='y')
+
 #### Grock output
 ```
 LEVELS (DEBUG|TEST|VERBOSE|INFO||WARN|ERROR)
@@ -64,6 +77,8 @@ Note: date/time will not be printed on AWS as they already add that to logs. It 
 |          | context    | The context passed in from the lambda
 |          | (js only)extra | optional Dictionary: arbitrary key-value pairs denoting context
 |          | (py only)**kwargs | optional arbitrary key-value pairs denoting context
+| setHubContext |           | Points to which Sentry.io project to log to
+|          | project      | Sentry context; references AWS Parameter store for config
 | setLevels |            | Set what log tags will produce output
 |          | 1 or more heslog levels | As defined in heslog (eg. heslog.LEVEL_ERROR)
 
@@ -72,6 +87,7 @@ Note: date/time will not be printed on AWS as they already add that to logs. It 
 ```python
 import heslog
 
+heslog.setHubContext('snek') # references /all/sentry/production/snek/dns for Sentry config
 heslog.setContext({"foo": "bar"})
 heslog.debug("message")
 heslog.addContext({"bar": "baz"})
@@ -90,6 +106,7 @@ heslog.setLevels(heslog.LEVEL_WARN, heslog.LEVEL_INFO)
 const hesburgh = require("hesburgh_util");
 const heslog = hesburgh.heslog;
 
+heslog.setHubContext('armor')
 heslog.setContext({foo: "bar"});
 heslog.debug("message", {foo: "baz", context: "here"});
 heslog.setLevels(heslog.levels.debug);
