@@ -196,6 +196,3 @@ def setHubContext(**kwargs):
     WithDecryption=True
   )
   Logger().setLoggingClient(response['Parameter']['Value'])
-
-setHubContext(id='sampler')
-info('what what',sentry='sentry')
