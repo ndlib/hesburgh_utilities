@@ -113,8 +113,11 @@ class Logger(object):
           self.coreContext.pop(key, None)
     
 
-    def setLoggingClient(self, dsn):
-      self.client = Client(dsn)
+    def setLoggingClient(self, dsn=None):
+      if dsn is None:
+        self.client = None
+      else:
+        self.client = Client(dsn)
 
   def __new__(self, outFile = None):
     if Logger.__instance is None:
@@ -190,9 +193,13 @@ def setOutfile(filename):
   info("file output currently not implemented")
 
 def setHubContext(**kwargs):
-  ssm = boto3.client('ssm',region_name='us-east-1')
-  response = ssm.get_parameter(
-    Name='/all/sentry/production/' + kwargs['id'] + '/dsn',
-    WithDecryption=True
-  )
-  Logger().setLoggingClient(response['Parameter']['Value'])
+  try:
+    ssm = boto3.client('ssm',region_name='us-east-1')
+    response = ssm.get_parameter(
+      Name='/all/sentry/production/' + kwargs['id'] + '/dsn',
+      WithDecryption=True
+    )
+    Logger().setLoggingClient(response['Parameter']['Value'])
+  except Exception:
+    Logger().setLoggingClient(None)
+    error("Unable to set logging client")
