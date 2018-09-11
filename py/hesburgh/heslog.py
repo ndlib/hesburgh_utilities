@@ -82,10 +82,11 @@ class Logger(object):
           level_type = 'warning'
         elif level == LEVEL_ERROR:
           level_type = 'error'
-        if issubclass(type(message), Exception):
-          self.client.captureException(level=level_type, extra=self.coreContext)
-        else:
-          self.client.captureMessage(message, level=level_type, extra=self.coreContext)
+        if self.client is not None:
+          if issubclass(type(message), Exception):
+            self.client.captureException(level=level_type, extra=self.coreContext)
+          else:
+            self.client.captureMessage(message, level=level_type, extra=self.coreContext)
 
 
     def setLevels(self, *levels):
@@ -195,3 +196,6 @@ def setHubContext(**kwargs):
     WithDecryption=True
   )
   Logger().setLoggingClient(response['Parameter']['Value'])
+
+setHubContext(id='sampler')
+info('what what',sentry='sentry')
