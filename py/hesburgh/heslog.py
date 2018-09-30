@@ -1,7 +1,6 @@
 from datetime import datetime
 from raven import Client
 import inspect
-import boto3
 
 import hesutil
 import scriptutil
@@ -192,14 +191,9 @@ def setLevels(*levels):
 def setOutfile(filename):
   info("file output currently not implemented")
 
-def setHubContext(**kwargs):
+def setHubContext():
   try:
-    ssm = boto3.client('ssm',region_name='us-east-1')
-    response = ssm.get_parameter(
-      Name='/all/sentry/production/' + kwargs['id'] + '/dsn',
-      WithDecryption=True
-    )
-    Logger().setLoggingClient(response['Parameter']['Value'])
+    Logger().setLoggingClient(hesutil.getEnv("SENTRY_DSN"))
   except Exception:
     Logger().setLoggingClient(None)
     error("Unable to set logging client")
