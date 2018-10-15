@@ -1,4 +1,5 @@
 from datetime import datetime
+from raven import Client
 import inspect
 
 import hesutil
@@ -41,6 +42,7 @@ class Logger(object):
           LEVEL_ERROR: LEVELS[LEVEL_ERROR],
         }
       self.coreContext = {}
+      self.client = None # sentry
 
 
     def _log(self, message):
@@ -73,6 +75,17 @@ class Logger(object):
       if level in self.levels:
         outStr = self._getPrefix(level) + self._format(message, **kwargs)
         self._log(outStr)
+      if (level >= LEVEL_WARN) or ('sentry' in kwargs):
+        level_type = LEVELS[level].lower()
+        if level == LEVEL_WARN:
+          level_type = 'warning'
+        elif level == LEVEL_ERROR:
+          level_type = 'error'
+        if self.client is not None:
+          if issubclass(type(message), Exception):
+            self.client.captureException(level=level_type, extra=self.coreContext)
+          else:
+            self.client.captureMessage(message, level=level_type, extra=self.coreContext)
 
 
     def setLevels(self, *levels):
@@ -97,7 +110,13 @@ class Logger(object):
       for key in keys:
         if key in self.coreContext:
           self.coreContext.pop(key, None)
+    
 
+    def setLoggingClient(self, dsn=None):
+      if dsn is None:
+        self.client = None
+      else:
+        self.client = Client(dsn)
 
   def __new__(self, outFile = None):
     if Logger.__instance is None:
@@ -172,3 +191,9 @@ def setLevels(*levels):
 def setOutfile(filename):
   info("file output currently not implemented")
 
+def setHubContext():
+  try:
+    Logger().setLoggingClient(hesutil.getEnv("SENTRY_DSN"))
+  except Exception:
+    Logger().setLoggingClient(None)
+    error("Unable to set logging client")

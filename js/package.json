@@ -1,7 +1,7 @@
 {
   "name": "@hesburgh-wse/hesburgh_utilities",
   "description": "Hesburgh Javascript Utilities",
-  "version": "1.0.7",
+  "version": "2.0.0",
   "license": "Apache 2.0",
   "main": "index.js",
   "author": "Harrison Beachey <hbeachey@nd.edu>",
@@ -10,11 +10,11 @@
     "url": "git+https://github.com/ndlib/hesburgh_utilities.git"
   },
   "dependencies": {
-    "async": "^2.5.0"
-  },
-  "devDependencies": {
+    "async": "^2.5.0",
+    "raven": "^2.6.3",
     "aws-sdk": "^2.82.0"
   },
+  "devDependencies": {},
   "scripts": {
     "test": "node test/test.js",
     "prepack": "rm testdata && cp -r ../testdata .",

@@ -2,8 +2,9 @@
 
 const util = require('./hesutil');
 const scriptutil = require('./scriptutil');
+const raven = require('raven');
 
-const HESLOG_KEY = "library.nd.edu.logger";
+const HESLOG_KEY  = "library.nd.edu.logger";
 
 const LEVEL_DEBUG   = 0;
 const LEVEL_VERBOSE = 3;
@@ -95,12 +96,25 @@ class HesLogger {
     }
   }
 
-  log(level, message, args) {
+  log(level, message, args, sentry) {
     var output = this._toString(message);
 
     if(util.dictHas(this.levels, level)) {
       var outLog = this._getPrefix(level) + this._format(output, args);
       this._log(outLog);
+    }
+    if((level >= LEVEL_WARN) || sentry) {
+      let level_type = LEVELS[level].toLowerCase();
+      if(level === LEVEL_WARN) {
+        level_type = "warning"
+      } else if(level === LEVEL_ERROR) {
+        level_type = "error"
+      }
+      if(message instanceof Error) {
+        raven.captureException(message.message, {extra: this.coreContext,level: level_type});
+      } else {
+        raven.captureMessage(message, {extra: this.coreContext,level: level_type});
+      }
     }
   }
 
@@ -155,17 +169,34 @@ function addLambdaContext(event, context, extra) {
   getGlobal().addContext(Object.assign({}, lambdaContext, extra));
 }
 
+const setHubContext = async (...args) => {
+  const AWS = require('aws-sdk');
+  const ssm = new AWS.SSM({region: "us-east-1"});
+  let param = {
+    Name: '/all/sentry/production/' + args[0] + '/dsn',
+    WithDecryption: true
+  };
+  try {
+    const data = await ssm.getParameter(param).promise();
+    raven.config(data.Parameter.Value).install();
+  } catch (err) {
+    console.log(err);
+    return err;
+  }
+}
+
 module.exports = {
-  debug: function(message, args) { getGlobal().log(LEVEL_DEBUG, message, args); },
-  verbose: function(message, args) { getGlobal().log(LEVEL_VERBOSE, message, args); },
-  test: function(message, args) { getGlobal().log(LEVEL_TEST, message, args); },
-  info: function(message, args) { getGlobal().log(LEVEL_INFO, message, args); },
-  warn: function(message, args) { getGlobal().log(LEVEL_WARN, message, args); },
-  error: function(message, args) { getGlobal().log(LEVEL_ERROR, message, args); },
+  debug: function(message, args, sentry) { getGlobal().log(LEVEL_DEBUG, message, args, sentry); },
+  verbose: function(message, args, sentry) { getGlobal().log(LEVEL_VERBOSE, message, args, sentry); },
+  test: function(message, args, sentry) { getGlobal().log(LEVEL_TEST, message, args, sentry); },
+  info: function(message, args, sentry) { getGlobal().log(LEVEL_INFO, message, args, sentry); },
+  warn: function(message, args, sentry) { getGlobal().log(LEVEL_WARN, message, args, sentry); },
+  error: function(message, args, sentry) { getGlobal().log(LEVEL_ERROR, message, args, sentry); },
   setLevels: function() { var gl = getGlobal(); gl.setLevels.apply(gl, arguments); },
   setContext: function(context) { getGlobal().setContext(context); },
   addContext: function(context) { getGlobal().addContext(context); },
   removeContext: function() { getGlobal().removeContext(arguments); },
+  setHubContext: setHubContext,
   addLambdaContext: addLambdaContext,
   levels: {
     debug  : LEVEL_DEBUG,
