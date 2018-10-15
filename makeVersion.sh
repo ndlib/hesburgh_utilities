@@ -7,5 +7,5 @@ popd
 
 pushd js
 # set version first
-  npm publish
+  npm publish --access public
 popd

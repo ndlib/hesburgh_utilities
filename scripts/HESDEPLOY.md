@@ -47,8 +47,9 @@ These can be chained with eachother and with environment variables, for instance
 
 After assuming the required role and sourcing required secrets files, the most basic usage is as follows:
 ```
-hesdeploy
+hesdeploy --[create|update|replace|delete]
 ```
+Unless other parameters override it (eg. --noAws), a stack action must be specified to run.
 
 ## Options
 | Option      | Parameter  | Description
